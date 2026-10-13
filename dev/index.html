@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>MotionCraft Pro — banc d'essai</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      html, body { overflow: auto; background: #060608; }
+      .harness { display: flex; flex-direction: row; height: 100vh; }
+      .dev-side { width: 260px; padding: 16px; color: #a7abb4; font: 12px/1.5 -apple-system, sans-serif; border-right: 1px solid #222; flex-shrink: 0; }
+      .dev-side h1 { font-size: 13px; color: #edeef0; margin: 0 0 4px; }
+      .dev-side p { margin: 0 0 14px; color: #6e727c; }
+      .dev-side label { display: block; margin: 12px 0 4px; color: #edeef0; }
+      .dev-side select, .dev-side input { width: 100%; }
+      .dev-side pre { white-space: pre-wrap; font-size: 10.5px; color: #8b8f99; background: #0b0c0f; border: 1px solid #222; border-radius: 6px; padding: 8px; min-height: 120px; }
+      .stagearea { flex: 1; display: flex; align-items: stretch; justify-content: center; padding: 16px; overflow: auto; }
+      #frame { width: 380px; height: calc(100vh - 32px); border: 1px solid #2a2b31; border-radius: 4px; overflow: hidden; position: relative; resize: horizontal; }
+      #app { height: 100%; }
+    </style>
+    <script defer src="main.js"></script>
+  </head>
+  <body>
+    <div class="harness">
+      <aside class="dev-side">
+        <h1>Simulateur Premiere Pro</h1>
+        <p>Banc d'essai de l'interface. Les images clés sont écrites dans un Premiere simulé, pas dans le vrai logiciel.</p>
+        <label for="sel">Sélection dans la timeline</label>
+        <select id="sel">
+          <option value="none">Aucun clip</option>
+          <option value="one" selected>1 texte (titre centré)</option>
+          <option value="subtitle">1 sous-titre (bas de l'image)</option>
+          <option value="words">5 calques « un mot »</option>
+          <option value="thirty">30 textes</option>
+          <option value="mixed">1 texte + 1 audio</option>
+          <option value="no-sequence">Pas de séquence</option>
+        </select>
+        <label for="fmt">Format de séquence</label>
+        <select id="fmt">
+          <option value="hd">1920×1080 · 25 i/s</option>
+          <option value="uhd">3840×2160 · 25 i/s</option>
+          <option value="reels">1080×1920 · 30 i/s (Reels)</option>
+        </select>
+        <label for="width">Largeur du panneau <span id="width-label">380 px</span></label>
+        <input id="width" type="range" min="280" max="1100" value="380" />
+        <label>Transactions Premiere (simulées)</label>
+        <pre id="log"></pre>
+      </aside>
+      <main class="stagearea">
+        <div id="frame"><div id="app"></div></div>
+      </main>
+    </div>
+  </body>
+</html>

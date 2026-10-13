@@ -1,0 +1,36 @@
+{
+  "name": "motioncraft-pro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MotionCraft Pro — plugin UXP d'animations de textes pour Adobe Premiere Pro",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "dev": "node scripts/build.mjs --dev --serve",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:ui": "node scripts/ui-smoke.mjs",
+    "validate": "node scripts/validate-plugin.mjs",
+    "package": "node scripts/build.mjs && node scripts/validate-plugin.mjs && node scripts/package-ccx.mjs",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run package && npm run test:ui"
+  },
+  "devDependencies": {
+    "@adobe/cc-ext-uxp-types": "7.3.1",
+    "@adobe/eslint-plugin-premierepro": "26.5.0",
+    "@adobe/premierepro": "26.5.0",
+    "@eslint/js": "^9.39.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.39.0",
+    "fflate": "^0.8.2",
+    "playwright-core": "^1.55.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.0"
+  }
+}
