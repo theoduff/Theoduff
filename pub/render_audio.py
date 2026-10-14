@@ -80,7 +80,7 @@ t_all = np.arange(N) / SR
 
 # ton de pièce (grave, très bas)
 room = np.stack([filt(noise(N), 250, "low"), filt(noise(N), 250, "low")], 1)
-amb += room * 0.05
+amb += room * 0.08
 
 # brise par les fenêtres ouvertes : rafales lentes, stéréo décorrélée
 gust = 0.55 + 0.45 * smooth_noise(N, 0.35)
@@ -91,14 +91,14 @@ for c, p in ((0, -0.5), (1, 0.5)):
 # feuillages : bruit aigu granuleux, suit les rafales
 leaves = filt(noise(N), 2500, "high") * (np.abs(filt(noise(N), 40, "low")) * 6)
 for c in range(2):
-    amb[:, c] += np.roll(leaves, c * 997) * gust ** 2 * 0.025
+    amb[:, c] += np.roll(leaves, c * 997) * gust ** 2 * 0.008
 
 # cigales très lointaines (pulsation rapide, bande étroite)
 cic = filt(noise(N), [4200, 5600], "band")
 cic *= (0.5 + 0.5 * np.sin(2 * np.pi * 62 * t_all)) ** 3
 cic *= 0.6 + 0.4 * smooth_noise(N, 0.2)
-amb += pan2(cic, 0.6) * 0.012
-amb += pan2(np.roll(cic, 12345), -0.7) * 0.008
+amb += pan2(cic, 0.6) * 0.005
+amb += pan2(np.roll(cic, 12345), -0.7) * 0.003
 
 
 # ------------------------------------------------------------------ oiseaux (au loin)
@@ -162,27 +162,16 @@ def dove_call():
 def bird(x, dist):
     """Éloigne un chant : filtre les aigus et atténue selon la distance."""
     x = filt(x, 9000 - 5000 * dist, "low")
-    return x * (0.05 * (1 - 0.6 * dist))
+    return filt(x, 3500, "low") * (0.012 * (1 - 0.6 * dist))  # à travers la fenêtre
 
 
-events = [(blackbird_phrase, 0.2, 0.7, -0.6), (sparrow_phrase, 1.4, 0.5, 0.7),
-          (tit_phrase, 3.0, 0.8, -0.2), (dove_call, 3.6, 0.9, 0.8),
-          (sparrow_phrase, 4.6, 0.6, 0.4), (blackbird_phrase, 6.0, 0.55, -0.7),
-          (sparrow_phrase, 7.3, 0.4, 0.75), (tit_phrase, 8.4, 0.7, -0.3),
-          (blackbird_phrase, 9.4, 0.65, 0.5)]
+events = [(blackbird_phrase, 0.6, 0.9, -0.6), (sparrow_phrase, 3.4, 0.9, 0.6),
+          (blackbird_phrase, 7.2, 0.9, -0.5)]
 for fn, t0, dist, pan in events:
     place(birds, bird(fn(), dist), t0 + rng.uniform(-0.15, 0.15), pan=pan)
 
 
 # ------------------------------------------------------------------ bruitages
-def glass_clink():
-    t = tt(0.8)
-    parts = [(2480, 1.0, 0.22), (4170, 0.5, 0.14), (6310, 0.3, 0.08)]
-    x = sum(a * np.sin(2 * np.pi * f * t + rng.random() * 6) * np.exp(-t / d) for f, a, d in parts)
-    tick = filt(noise(len(t)), 3000, "high") * np.exp(-t / 0.002)
-    return x * 0.25 + tick * 0.15
-
-
 def slosh(d=0.6):
     out = np.zeros(int(d * SR))
     for _ in range(18):
@@ -196,12 +185,32 @@ def slosh(d=0.6):
     return filt(out + wash, 2500, "low") * 0.35
 
 
+def drink_stream(d):
+    """Liquide qui coule du verre aux lèvres : petites bulles (hauteur montante) + souffle humide."""
+    n = int(d * SR)
+    out = np.zeros(n)
+    dens = 0.5 + 0.5 * smooth_noise(n, 3)
+    for _ in range(int(55 * d)):
+        t0 = rng.uniform(0, d - 0.04)
+        if rng.random() > dens[int(t0 * SR)]:
+            continue
+        bt = tt(rng.uniform(0.015, 0.035))
+        f = rng.uniform(450, 1300) * (1 + 3 * bt)
+        b_ = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-bt / 0.008)
+        i = int(t0 * SR)
+        out[i:i + len(b_)] += b_ * rng.uniform(0.1, 0.4)
+    wash = filt(noise(n), [250, 1500], "band") * (0.4 + 0.6 * dens) * 0.25
+    env = np.minimum(1, np.minimum(np.arange(n), n - np.arange(n)) / (0.08 * SR))
+    return filt(out + wash, 1800, "low", 4) * env * 0.4
+
+
 def swallow():
-    """Déglutition réaliste : petit claquement humide + masse grave sourde, sans ton."""
-    t = tt(0.25)
-    wet = filt(noise(len(t)), [500, 2500], "band") * np.exp(-((t - 0.03) / 0.012) ** 2) * 0.5
-    thump = filt(noise(len(t)), 220, "low") * np.exp(-((t - 0.08) / 0.03) ** 2) * 2.2
-    return filt(wet + thump, 2800, "low", 4) * 0.5
+    """Déglutition : courte masse grave étouffée, comme captée près de la gorge."""
+    t = tt(0.3)
+    body = filt(noise(len(t)), [70, 260], "band", 2) * np.exp(-((t - 0.09) / 0.045) ** 2) * 3.0
+    wet = filt(noise(len(t)), [300, 1200], "band") * np.exp(-((t - 0.04) / 0.015) ** 2) * 0.25
+    return filt(body + wet, 1200, "low", 4) * 0.5
+
 
 
 def cloth(d=0.5):
@@ -226,14 +235,14 @@ def air_gust(d=1.6):
 
 
 # le verre
-place(foley, glass_clink(), T_GRAB, gain=0.5, pan=-0.15, send=0.25)
 place(foley, slosh(0.6), T_GRAB + 0.3, gain=0.55, pan=-0.1, send=0.1)
 place(foley, cloth(0.4), T_GRAB + 0.2, gain=0.6)
 # gorgées
-t_g = T_SIP_START + 0.25
+place(foley, drink_stream(T_SIP_END - T_SIP_START), T_SIP_START, gain=0.9)
+t_g = T_SIP_START + 0.45
 while t_g < T_SIP_END:
-    place(foley, swallow(), t_g, gain=0.8 + rng.uniform(-0.1, 0.1), send=0.05)
-    t_g += rng.uniform(0.42, 0.55)
+    place(foley, swallow(), t_g, gain=0.9 + rng.uniform(-0.1, 0.1))
+    t_g += rng.uniform(0.5, 0.65)
 # il repose le bras, se tourne et repart
 place(foley, cloth(0.6), T_DROP + 0.65, gain=0.8, pan=0.1)
 t_s, k = T_DROP + 1.05, 0
@@ -261,7 +270,7 @@ def conv(x, h):
     return np.stack([signal.fftconvolve(x[:, c], h[:, c])[:N] for c in range(2)], 1)
 
 
-birds = birds + conv(birds, ir(1.5, 0.35, 5000)) * 0.6   # extérieur, au loin
+birds = birds + conv(birds, ir(0.5, 0.1, 3000)) * 0.4    # dehors, filtré par la fenêtre
 room_wet = conv(room_send, ir(0.6, 0.12, 6000))          # cuisine
 
 # ------------------------------------------------------------------ « bulle » pendant la gorgée
