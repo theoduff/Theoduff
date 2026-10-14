@@ -11,7 +11,7 @@ import numpy as np
 from scipy import signal
 from scipy.io import wavfile
 
-from timeline import SR, DUR, T_DROP, T_GRAB, T_SIP_START, T_SIP_END, T_EXIT
+from timeline import SR, DUR, T_DROP, T_GRAB, T_SIP_START, T_SIP_END
 
 OUT = sys.argv[1]
 rng = np.random.default_rng(11)
@@ -219,13 +219,6 @@ def cloth(d=0.5):
     return x * np.sin(np.pi * t / d) ** 2 * (0.6 + 0.4 * smooth_noise(len(t), 30)) * 0.12
 
 
-def step():
-    t = tt(0.18)
-    thud = filt(noise(len(t)), 180, "low") * np.exp(-t / 0.03) * 2.0
-    scuff = filt(noise(len(t)), [800, 5000], "band") * np.exp(-t / 0.04) * 0.15
-    return thud + scuff
-
-
 def air_gust(d=1.6):
     """Bouffée d'air frais qui s'ouvre au moment du boost."""
     t = tt(d)
@@ -243,13 +236,8 @@ t_g = T_SIP_START + 0.45
 while t_g < T_SIP_END:
     place(foley, swallow(), t_g, gain=0.9 + rng.uniform(-0.1, 0.1))
     t_g += rng.uniform(0.5, 0.65)
-# il repose le bras, se tourne et repart
+# il repose le bras et se tourne
 place(foley, cloth(0.6), T_DROP + 0.65, gain=0.8, pan=0.1)
-t_s, k = T_DROP + 1.05, 0
-while t_s < T_EXIT + 0.2:
-    place(foley, step(), t_s, gain=0.5 * (1 - 0.08 * k), pan=min(0.9, 0.1 + 0.15 * k), send=0.2)
-    t_s += 0.36 + rng.uniform(-0.02, 0.02)
-    k += 1
 # le boost : bouffée d'air + inspiration de soulagement (souffle filtré), très doux
 place(amb, air_gust(), T_DROP - 0.02, gain=1.0)
 t = tt(0.6)
