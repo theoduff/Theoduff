@@ -1,0 +1,49 @@
+type,debut_s,fin_s,frame,valeur,note
+coupe,4.90,,147,jump cut,apparition UI factice
+coupe,6.73,,202,face->carton noir,
+coupe,10.20,,306,carton noir->carton blanc,swish 10.23s
+coupe,13.20,,396,carton blanc->face,
+coupe,15.77,,473,jump cut,recadrage dx~30px
+coupe,19.37,,581,face->carton noir data,
+coupe,22.53,,676,carton->face,
+coupe,30.80,,924,face->capture ecran,swish 30.77s
+coupe,32.73,,982,capture->face,
+coupe,35.03,,1051,face->carton blanc,
+coupe,37.13,,1114,carton->face,
+coupe,41.13,,1234,face->carton noir,
+coupe,43.20,,1296,carton noir->carton blanc,impact+swish
+coupe,43.80,,1314,carton->face,
+coupe,47.10,,1413,jump cut,
+coupe,48.83,,1465,face->capture web,
+coupe,50.90,,1527,capture->face,
+coupe,54.30,,1629,jump cut,
+coupe,55.83,,1675,face->carton blanc fiche,
+coupe,62.67,,1880,carton->face,
+coupe,65.83,,1975,face->terminal,
+coupe,69.43,,2083,terminal->b-roll,
+coupe,72.47,,2174,b-roll->face,
+coupe,74.87,,2246,face->carton noir Hello,swish+impact; 2e voix
+coupe,77.07,,2312,carton->capture Finder,swish
+coupe,79.13,,2374,capture->carton blanc,
+coupe,81.30,,2439,carton blanc->carton noir,swish
+coupe,83.23,,2497,carton->face CTA,
+impact_sub,7.85,8.41,,demi-journee,centroide 39Hz
+impact_sub,12.65,13.22,,une (heure),centroide 36Hz
+impact_sub,18.36,18.93,,100 000 EUR,+punch-in
+impact_sub,31.34,31.91,,trois reels,
+impact_sub,32.94,33.51,,incroyables.,+punch-in; le plus fort
+impact_sub,35.58,36.14,,completement,
+impact_sub,43.22,43.78,,plaisent.,+swish
+impact_sub,66.68,67.27,,toutes,
+impact_sub,70.91,71.48,,8 heures,
+impact_sub,73.17,73.81,,automatise,+punch-in
+punch_in,18.40,18.67,552,x1.19,ancre ~(354,476)/720x1280
+punch_in,32.97,33.23,989,x1.22,ancre ~(362,566)
+punch_in,73.27,73.53,2198,x1.20,ancre ~(348,581)
+push_in,37.13,41.13,1114,x1.094,lineaire
+push_in,62.67,65.83,1880,x1.097,lineaire
+push_in,83.23,87.84,2497,x1.124,lineaire
+pan_virtuel,31.23,32.70,937,dx -615px zoom x1.066,ease-in-out
+derive,48.90,50.20,1468,dy -111px zoom x1.044,ease-out
+mix,,,,-14.1 LUFS,LRA 3.0 LU; true peak -0.0 dBFS
+musique,,,,Mi (E B F# A),~81/162 BPM estime; -20/-25dB sous la voix
