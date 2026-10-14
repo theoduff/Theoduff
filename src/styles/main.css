@@ -1738,3 +1738,464 @@ button {
 .pv-scene.v2 .pv-hill.front {
   background-color: #2b0f22;
 }
+
+/* ================================================================== */
+/* V2.1 — finitions inspirées des plugins de référence                */
+/* ================================================================== */
+
+/* En-tête : léger halo violet de marque */
+.topbar {
+  background-color: #121219;
+  background-image: radial-gradient(ellipse at 18% -40%, rgba(124, 108, 255, 0.35) 0%, rgba(18, 18, 25, 0) 60%);
+}
+
+/* Rail d'icônes de catégories */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 58px;
+  flex: 0 0 auto;
+  padding: 10px 0 12px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background-color: #0c0c10;
+}
+
+[data-size="xs"] .rail {
+  width: 48px;
+}
+
+.rail-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 44px;
+  margin-bottom: 2px;
+  border-radius: 12px;
+}
+
+.rail-btn.is-empty {
+  opacity: 0.35;
+}
+
+.rail-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  border: 2px solid transparent;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+[data-size="xs"] .rail-dot {
+  width: 32px;
+  height: 32px;
+}
+
+.rail-btn:hover .rail-dot {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.rail-sep {
+  width: 34px;
+  margin: 10px 0 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-strong);
+  text-align: center;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* Le rail remplace barre latérale, onglets, puces et barre de contexte de la V2. */
+.sidebar,
+.family-tabs,
+.chips,
+.context-bar,
+.insp-footer {
+  display: none !important;
+}
+
+/* En-tête de bibliothèque */
+.lib-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 14px 12px 4px 16px;
+  flex-shrink: 0;
+}
+
+.lib-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.lib-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.lib-sub {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.view-btn {
+  margin-left: 2px;
+}
+
+.view-btn.active {
+  background-color: var(--surface-2);
+}
+
+.lib-tools {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  padding: 6px 6px 4px 12px;
+  flex-shrink: 0;
+}
+
+.lib-tools .search {
+  flex: 1 1 200px;
+  margin: 0 6px 8px 0;
+}
+
+.yourtext {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex: 1 1 160px;
+  height: 34px;
+  margin: 0 6px 8px 0;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  border: 1px dashed var(--border-strong);
+}
+
+.yourtext:focus-within {
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+.yourtext-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  margin-left: 8px;
+  border: 0;
+  outline: none;
+  background-color: transparent;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.yourtext-input::placeholder {
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+/* Vignettes : fond teinté par catégorie */
+.card {
+  border-radius: 14px;
+}
+
+.card-stage {
+  height: 104px;
+}
+
+.stage.cat-pop { background-color: #1a1630; background-image: linear-gradient(135deg, #2b2257 0%, #121019 85%); }
+.stage.cat-blur { background-color: #11222c; background-image: linear-gradient(135deg, #123a4c 0%, #0d1216 85%); }
+.stage.cat-slide { background-color: #112520; background-image: linear-gradient(135deg, #12423a 0%, #0d1513 85%); }
+.stage.cat-word { background-color: #26210f; background-image: linear-gradient(135deg, #4a3a10 0%, #15130c 85%); }
+.stage.cat-bounce { background-color: #2a1322; background-image: linear-gradient(135deg, #521a3f 0%, #170d14 85%); }
+.stage.cat-accent { background-color: #2a1a10; background-image: linear-gradient(135deg, #55300f 0%, #170f0b 85%); }
+
+.card-meta {
+  padding: 9px 11px 10px;
+}
+
+.card-title-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.card-cat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  margin-right: 7px;
+  flex-shrink: 0;
+}
+
+.card-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.card-fav {
+  background-color: rgba(10, 10, 14, 0.6);
+}
+
+/* Vue liste */
+.list-mode .card {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  border-radius: 12px;
+}
+
+.list-mode .card-stage {
+  width: 132px;
+  height: 74px;
+  flex-shrink: 0;
+}
+
+.list-mode .card-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-top: 0;
+  border-left: 1px solid var(--border);
+}
+
+.list-mode .card-cell {
+  padding: 4px 6px;
+}
+
+.list-mode .card-apply-label,
+.list-mode .card-badge {
+  display: none;
+}
+
+.list-mode .card-apply {
+  width: 24px;
+  padding: 0;
+  justify-content: center;
+}
+
+.list-mode .card-apply .icon {
+  margin-right: 0;
+}
+
+/* Inspecteur : onglets façon TypeMotion */
+.inspector {
+  width: 340px;
+}
+
+.tabs {
+  display: flex;
+  flex-direction: row;
+  margin: 4px 0 0;
+  padding: 3px;
+  border-radius: 10px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.tab {
+  flex: 1 1 0;
+  height: 28px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  color: #ffffff;
+  background-color: var(--accent);
+}
+
+.tab-count {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 7px;
+  font-size: 10px;
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.section.first {
+  border-top: 0;
+  padding-top: 14px;
+}
+
+.notice-slot .notice {
+  margin-top: 12px;
+}
+
+.insp-desc {
+  margin: 10px 0 12px;
+}
+
+.insp-cat .card-cat-dot {
+  margin-right: 6px;
+}
+
+.insp-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.insp-actions .uses {
+  margin-top: 0;
+  flex: 1 1 auto;
+}
+
+/* Courbe d'easing */
+.ease-graph {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  background-color: #0b0c0f;
+  border: 1px solid var(--border);
+}
+
+/* Barre d'action fixe */
+.actionbar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border);
+  background-color: #111117;
+  background-image: linear-gradient(180deg, #15151d 0%, #0f0f14 100%);
+}
+
+.ab-status {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 18px;
+  margin-bottom: 7px;
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ab-anim {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.ab-sep {
+  margin: 0 6px;
+}
+
+.ab-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ab-actions {
+  display: flex;
+  flex-direction: row;
+}
+
+.ab-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  height: 38px;
+  margin-right: 8px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text);
+  background-color: #23233a;
+  border: 1px solid #34345a;
+  white-space: nowrap;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.ab-btn:last-child {
+  margin-right: 0;
+}
+
+.ab-btn .icon {
+  margin-right: 7px;
+}
+
+.ab-btn:hover {
+  background-color: #2d2d4c;
+  border-color: #4a4a7c;
+}
+
+.ab-btn.primary {
+  color: #ffffff;
+  background-color: var(--accent);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 6px 18px rgba(124, 108, 255, 0.3);
+}
+
+.ab-btn.primary:hover {
+  background-color: var(--accent-hover);
+}
+
+.ab-actions.n3 .ab-btn.primary:first-child {
+  flex: 2 1 0;
+}
+
+.ab-btn.disabled {
+  color: var(--text-3);
+  background-color: var(--surface-2);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.ab-busy {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  height: 38px;
+  border-radius: 10px;
+  color: #ffffff;
+  font-weight: 600;
+  background-color: var(--accent-press);
+}
+
+[data-layout="wide"] .toasts,
+[data-layout="full"] .toasts {
+  bottom: 84px;
+}
+
+[data-layout="narrow"] .toasts {
+  bottom: 84px;
+}
+
+/* Entrée/sortie : les 3 boutons tiennent même dans un panneau étroit */
+[data-size="xs"] .ab-btn,
+[data-size="sm"] .ab-btn {
+  font-size: 11.5px;
+  padding: 0 6px;
+}

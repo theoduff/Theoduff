@@ -12,12 +12,12 @@
 
 ## 1. Installation par le paquet `.ccx` (méthode « utilisateur »)
 
-Le paquet est déjà construit : `release/MotionCraftPro-2.0.0.ccx`.
+Le paquet est déjà construit : `release/MotionCraftPro-2.1.0.ccx`.
 
 **Option A : double-clic**
 
 1. Quittez Premiere Pro.
-2. Double-cliquez sur `release/MotionCraftPro-2.0.0.ccx`. Creative Cloud s'ouvre et propose l'installation. Le plugin ne vient pas de la Marketplace Adobe, donc un avertissement s'affiche : confirmez.
+2. Double-cliquez sur `release/MotionCraftPro-2.1.0.ccx`. Creative Cloud s'ouvre et propose l'installation. Le plugin ne vient pas de la Marketplace Adobe, donc un avertissement s'affiche : confirmez.
 3. Relancez Premiere Pro.
 
 **Option B : Terminal (installeur officiel Adobe, UPIA)**

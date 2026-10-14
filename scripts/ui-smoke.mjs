@@ -49,12 +49,12 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
   const total = await page.locator(".card").count();
   check(total >= 20, `${total} animations affichées`);
   check((await page.textContent(".pill")).includes("1 clip sélectionné"), "pastille de sélection à jour");
-  check(await page.locator(".sidebar").isVisible(), "barre latérale visible en grand panneau");
+  check(await page.locator(".rail").isVisible(), "rail de catégories visible");
   await page.hover(".card >> nth=1");
   await page.waitForTimeout(350);
   await page.screenshot({ path: join(out, "01-full-library.png") });
-  await page.click(".card >> nth=0");
-  await page.click(".btn.apply");
+  await page.click(".card >> nth=0 >> .card-title");
+  await page.click(".ab-btn:has-text('Entrée') >> nth=0");
   await page.waitForSelector(".toast.success", { timeout: 4000 });
   check(true, "Appliquer → notification de succès");
   await page.waitForTimeout(500);
@@ -65,18 +65,19 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
 // 2. Effets vidéo : navigation, application en un clic depuis la vignette, tête de lecture
 {
   const page = await open("sel=one&w=1100", { width: 1500, height: 860 });
-  await page.click(".nav-item:has-text('Tout vidéo')");
+  await page.click(".rail-btn[data-filter='family:video']");
   await page.waitForTimeout(200);
   const n = await page.locator(".card").count();
   check(n >= 13, `${n} effets vidéo`);
-  check(await page.locator(".context-bar:has-text('Placer à')").isVisible(), "choix du placement (tête de lecture)");
+  await page.click(".card:has-text('Zoom Punch') .card-title");
+  check(await page.locator(".ab-btn:has-text('tête de lecture')").isVisible(), "bouton « Appliquer à la tête de lecture »");
   await page.hover(".card:has-text('Camera Shake')");
   await page.waitForTimeout(450);
   await page.screenshot({ path: join(out, "02-video-effects.png") });
   await page.click(".card:has-text('Camera Shake') >> .card-apply");
   await page.waitForSelector(".toast.success", { timeout: 4000 });
   check(true, "application en un clic depuis la vignette");
-  await page.click(".nav-item:has-text('Caméra')");
+  await page.click(".rail-btn[data-filter='camera']");
   await page.click(".card:has-text('Ken Burns') .card-title");
   await page.waitForTimeout(700);
   await page.screenshot({ path: join(out, "03-video-inspector.png") });
@@ -86,10 +87,13 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
 // 3. Sens global Entrée / Sortie
 {
   const page = await open("sel=one&w=1100", { width: 1500, height: 860 });
-  await page.click(".nav-item:has-text('Tout texte')");
-  await page.click(".context-bar .seg-btn:has-text('Sortie')");
+  await page.click(".rail-btn[data-filter='family:text']");
+  await page.click(".card:has-text('Slide Up') .card-title");
+  await page.click(".ab-btn:has-text('Sortie')");
+  await page.waitForSelector(".toast.success", { timeout: 4000 });
   await page.waitForTimeout(200);
   check((await page.locator(".kind-badge:has-text('Sortie')").count()) >= 5, "vignettes passées en « Sortie »");
+  await page.screenshot({ path: join(out, "03b-text-out.png") });
   await page.close();
 }
 
@@ -104,7 +108,7 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
   await page.fill(".search-input", "");
   await page.hover(".card >> nth=4");
   await page.click(".card >> nth=4 >> .card-fav");
-  await page.click(".ftab:has-text('Favoris')");
+  await page.click(".rail-btn[data-filter='favorites']");
   await page.waitForTimeout(150);
   check((await page.locator(".card").count()) === 1, "favori ajouté et filtré");
   await page.screenshot({ path: join(out, "04-wide-favorites.png") });
@@ -118,9 +122,9 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
   await page.click(".card:has-text('Word by Word') .card-title");
   await page.waitForTimeout(500);
   check((await page.textContent(".notice")).includes("5 calques texte"), "notice multi-calques (5 mots)");
-  check((await page.textContent(".btn.apply")).includes("Appliquer à 5 clips"), "bouton « Appliquer à 5 clips »");
+  check((await page.textContent(".ab-status")).includes("5 clips"), "barre d'action : 5 clips");
   await page.screenshot({ path: join(out, "06-narrow-inspector.png") });
-  await page.click(".btn.apply");
+  await page.click(".ab-btn:has-text('Entrée') >> nth=0");
   await page.waitForSelector(".toast.success", { timeout: 4000 });
   check(true, "Word by Word appliqué à 5 calques");
   await page.close();
@@ -148,12 +152,12 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
 // 7. Aucun clip sélectionné, réglages, diagnostic, 30 clips
 {
   const page = await open("sel=none&w=820");
-  check(await page.locator(".btn.apply").isDisabled(), "bouton désactivé sans sélection");
+  check((await page.locator(".ab-btn.disabled").count()) >= 1, "boutons d'action grisés sans sélection");
   await page.close();
   const p2 = await open("sel=thirty&w=820");
-  await p2.click(".ftab:has-text('Vidéo')");
+  await p2.click(".rail-btn[data-filter='family:video']");
   await p2.click(".card:has-text('Push-in lent') .card-title");
-  await p2.click(".btn.apply");
+  await p2.click(".ab-btn:has-text('tout le clip')");
   await p2.waitForSelector(".toast.success", { timeout: 8000 });
   check((await p2.textContent(".toast.success")).includes("30 clips"), "30 clips animés en une fois");
   await p2.click("button[title='Réglages']");

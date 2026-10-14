@@ -1,5 +1,14 @@
 # Journal des versions
 
+## 2.1.0 — interface affinée (inspirée de PX-Kinetype, TypeMotion, Typoking)
+
+- Rail d'icônes de catégories en couleur, toujours visible (même panneau étroit).
+- En-tête de catégorie avec compteur, bascule vue grille / vue liste.
+- Champ « Votre texte » : tous les aperçus affichent votre propre texte.
+- Vignettes teintées par catégorie, pastille de couleur, deux colonnes même en panneau étroit.
+- Barre d'action fixe en bas : Entrée / Sortie / Entrée + sortie (application directe), « Appliquer à la tête de lecture » / Début / Fin pour les effets ponctuels, « Appliquer sur tout le clip », avec ligne d'état (« Prêt. », progression).
+- Panneau de réglages en onglets Réglages / Presets, courbe d'easing dessinée.
+
 ## 2.0.0 — stabilité, effets vidéo, interface façon Motion Bro
 
 **Stabilité (crash de Premiere panneau ouvert, signalé en V1)**

@@ -40,6 +40,7 @@ const PATHS: Record<string, string> = {
   shake: '<path d="M8 4 5 8l3 4-3 4 3 4M16 4l3 4-3 4 3 4-3 4"/><rect x="9.5" y="7" width="5" height="10" rx="1"/>',
   camera: '<path d="M3 7h12v10H3z"/><path d="m15 10 6-3v10l-6-3"/>',
   transition: '<rect x="3" y="5" width="8" height="14" rx="1.5"/><rect x="13" y="5" width="8" height="14" rx="1.5" stroke-dasharray="2 2"/><path d="m9 12h6M13 10l2 2-2 2"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
   all: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
 };
 

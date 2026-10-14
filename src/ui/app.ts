@@ -1,11 +1,14 @@
 /**
- * Interface MotionCraft Pro (V2, inspirée du fonctionnement de Motion Bro) :
- * barre latérale de catégories Texte / Vidéo, sens global Entrée / Sortie,
- * placement des effets ponctuels à la tête de lecture, application en un clic
- * depuis les vignettes, panneau de personnalisation, presets et réglages.
+ * Interface MotionCraft Pro (V2.1).
+ *
+ * Inspirée des panneaux de référence du marché (PX-Kinetype, TypeMotion,
+ * Typoking, Motion Bro) : rail d'icônes de catégories, grandes vignettes
+ * animées, champ « Votre texte », barre d'action fixe Entrée / Sortie /
+ * Entrée + sortie (ou tête de lecture), panneau de réglages en onglets.
  */
 import { ANIMATIONS, CATEGORIES, defaultParams, FAMILIES, familyOf, getAnimation, matchesQuery, sanitizeParams } from "../animations/registry";
-import type { AccentAnchor, AnimationDefinition, AnimationMode, CategoryId, FamilyId, NumberParam, ParamSpec, ParamValues, TrackKey } from "../engine/types";
+import { getEasing } from "../engine/easing";
+import type { AccentAnchor, AnimationDefinition, AnimationMode, CategoryId, ChoiceParam, FamilyId, NumberParam, ParamSpec, ParamValues, TrackKey } from "../engine/types";
 import { applyAnimation, getSelectionInfo, inspectSelection, watchSelection, type SelectionInfo } from "../premiere/adapter";
 import { getUxp, UserFacingError } from "../premiere/host";
 import { exportPresets, importPresets, makePresetId, type UserPreset } from "../state/presets";
@@ -16,22 +19,18 @@ import { cx, formatNumber, h, replaceChildren } from "./dom";
 import { icon, iconSvg } from "./icons";
 import { PreviewPlayer, suspendPreviews } from "./preview";
 
-export const VERSION = "2.0.0";
+export const VERSION = "2.1.0";
 
 type Filter = "all" | "favorites" | `family:${FamilyId}` | CategoryId;
 type View = "library" | "inspector" | "settings";
+type InspectorTab = "settings" | "presets";
 
-const MODE_OPTIONS: { value: AnimationMode; label: string }[] = [
-  { value: "in", label: "Entrée" },
-  { value: "out", label: "Sortie" },
-  { value: "inOut", label: "Entrée + sortie" },
+const MODE_OPTIONS: { value: AnimationMode; label: string; short: string }[] = [
+  { value: "in", label: "Entrée", short: "In" },
+  { value: "out", label: "Sortie", short: "Out" },
+  { value: "inOut", label: "Entrée + sortie", short: "In / Out" },
 ];
 
-const ANCHOR_OPTIONS: { value: AccentAnchor; label: string }[] = [
-  { value: "playhead", label: "Tête de lecture" },
-  { value: "start", label: "Début du clip" },
-  { value: "end", label: "Fin du clip" },
-];
 
 const SPEEDS: { value: string; label: string; factor: number }[] = [
   { value: "0.5", label: "Lent", factor: 0.5 },
@@ -54,6 +53,20 @@ const GROUP_LABEL: Record<NonNullable<ParamSpec["group"]>, string> = {
   timing: "Timing",
   motion: "Mouvement",
   style: "Style",
+};
+
+/** Couleur d'identité de chaque catégorie (rail, vignettes, badges). */
+export const CATEGORY_COLOR: Record<CategoryId, string> = {
+  pop: "#8B7CFF",
+  blur: "#5BC0EB",
+  slide: "#4FD1A5",
+  word: "#F2C94C",
+  bounce: "#FF7AB6",
+  accent: "#FF9F5A",
+  zoom: "#B794F6",
+  shake: "#F87171",
+  camera: "#38BDF8",
+  transition: "#F5A524",
 };
 
 const FAMILY_ICON: Record<FamilyId, string> = { text: "word", video: "film" };
@@ -80,7 +93,10 @@ interface State {
   selection: SelectionInfo;
   view: View;
   layout: "narrow" | "wide" | "full";
+  listMode: boolean;
+  tab: InspectorTab;
   applying: boolean;
+  status: string;
 }
 
 export class App {
@@ -88,18 +104,16 @@ export class App {
   private root: HTMLElement;
   private els!: {
     pill: HTMLElement;
-    sidebar: HTMLElement;
-    tabs: HTMLElement;
-    chips: HTMLElement;
-    context: HTMLElement;
+    rail: HTMLElement;
+    libHead: HTMLElement;
     grid: HTMLElement;
     gridScroll: HTMLElement;
     search: HTMLInputElement;
+    yourText: HTMLInputElement;
     inspector: HTMLElement;
+    actionbar: HTMLElement;
     sheet: HTMLElement;
     toasts: HTMLElement;
-    applyBtn?: HTMLButtonElement;
-    applyNote?: HTMLElement;
     notice?: HTMLElement;
   };
   private cardPlayers: PreviewPlayer[] = [];
@@ -109,6 +123,7 @@ export class App {
   private refreshing = false;
   private lastRefresh = 0;
   private lastWidth = 0;
+  private textTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -124,7 +139,10 @@ export class App {
       selection: { status: "no-host", clips: [], ignored: 0 },
       view: "library",
       layout: "wide",
+      listMode: load<boolean>("listMode", false) === true,
+      tab: "settings",
       applying: false,
+      status: "Prêt.",
     };
     if (!getAnimation(this.s.selectedId)) this.s.selectedId = ANIMATIONS[0].id;
   }
@@ -136,11 +154,12 @@ export class App {
   mount() {
     this.root.classList.add("mc-app");
     replaceChildren(this.root, this.buildShell());
+    this.root.classList.toggle("list-mode", this.s.listMode);
     this.updateLayout();
     this.renderNav();
-    this.renderContext();
     this.renderGrid();
     this.renderInspector();
+    this.renderActionBar();
     this.renderStatus();
     // Pas de minuteur permanent : on réagit au redimensionnement et au retour de la souris.
     window.addEventListener("resize", () => this.updateLayout());
@@ -178,7 +197,6 @@ export class App {
     const onQuery = () => {
       this.renderGrid();
       this.renderNav();
-      this.renderContext();
     };
     const search = h("input", {
       class: "search-input",
@@ -204,27 +222,37 @@ export class App {
       },
       icon("x", C.text3, 13),
     );
-    const sidebar = h("nav", { class: "sidebar scroll" });
-    const tabs = h("div", { class: "family-tabs" });
-    const chips = h("div", { class: "chips" });
-    const context = h("div", { class: "context-bar" });
+    const yourText = h("input", {
+      class: "yourtext-input",
+      type: "text",
+      maxLength: 40,
+      value: this.s.settings.previewText,
+      placeholder: "Votre texte d'aperçu…",
+      oninput: (e: Event) => this.onPreviewText((e.target as HTMLInputElement).value),
+    });
+    const rail = h("nav", { class: "rail" });
+    const libHead = h("div", { class: "lib-head" });
     const grid = h("div", { class: "grid" });
     const gridScroll = h("div", { class: "scroll grid-scroll" }, grid);
     const inspector = h("div", { class: "inspector" });
+    const actionbar = h("footer", { class: "actionbar" });
     const sheet = h("div", { class: "sheet hidden" });
     const toasts = h("div", { class: "toasts" });
 
     const library = h(
       "section",
       { class: "library" },
-      h("div", { class: "search" }, icon("search", C.text3, 15), search, h("span", { class: "kbd" }, "/"), clearSearch),
-      tabs,
-      chips,
-      context,
+      libHead,
+      h(
+        "div",
+        { class: "lib-tools" },
+        h("div", { class: "search" }, icon("search", C.text3, 15), search, h("span", { class: "kbd" }, "/"), clearSearch),
+        h("label", { class: "yourtext", title: "Texte utilisé dans les aperçus" }, icon("word", C.text3, 14), yourText),
+      ),
       gridScroll,
     );
-    const body = h("div", { class: "body" }, sidebar, library, inspector);
-    this.els = { pill, sidebar, tabs, chips, context, grid, gridScroll, search, inspector, sheet, toasts };
+    const body = h("div", { class: "body" }, rail, library, inspector);
+    this.els = { pill, rail, libHead, grid, gridScroll, search, yourText, inspector, actionbar, sheet, toasts };
 
     return h(
       "div",
@@ -244,17 +272,27 @@ export class App {
         h("button", { class: "icon-btn", type: "button", title: "Réglages", onclick: () => this.openSettings() }, icon("settings", C.text2, 16)),
       ),
       body,
+      actionbar,
       sheet,
       toasts,
     );
+  }
+
+  private onPreviewText(v: string) {
+    if (this.textTimer) clearTimeout(this.textTimer);
+    this.textTimer = setTimeout(() => {
+      this.updateSettings({ previewText: v });
+      for (const p of this.cardPlayers) p.setText(v);
+      this.mainPlayer?.setText(v || this.current().previewText || "");
+    }, 150);
   }
 
   private updateLayout() {
     const width = this.root.getBoundingClientRect().width || window.innerWidth;
     if (Math.abs(width - this.lastWidth) < 1) return;
     this.lastWidth = width;
-    const layout = width >= 900 ? "full" : width >= 600 ? "wide" : "narrow";
-    const size = width < 340 ? "xs" : width < 600 ? "sm" : width < 900 ? "md" : "lg";
+    const layout = width >= 900 ? "full" : width >= 640 ? "wide" : "narrow";
+    const size = width < 340 ? "xs" : width < 640 ? "sm" : width < 900 ? "md" : "lg";
     this.root.setAttribute("data-size", size);
     if (layout !== "narrow" && this.s.view === "inspector") this.s.view = "library";
     this.s.layout = layout;
@@ -271,8 +309,9 @@ export class App {
 
   private layoutGrid() {
     const w = this.els.gridScroll.getBoundingClientRect().width || 300;
-    const min = this.root.getAttribute("data-size") === "xs" ? 128 : 156;
-    const cols = Math.max(1, Math.min(5, Math.floor((w - 4) / (min + 10))));
+    const size = this.root.getAttribute("data-size");
+    const min = this.s.listMode ? 9999 : size === "xs" || size === "sm" ? 118 : 150;
+    const cols = Math.max(1, Math.min(5, Math.floor((w - 4) / (min + 12))));
     this.els.grid.setAttribute("data-cols", String(cols));
     const pct = `${(100 / cols).toFixed(4)}%`;
     for (const card of Array.from(this.els.grid.children) as HTMLElement[]) {
@@ -303,30 +342,30 @@ export class App {
     }
   }
 
-  private renderStatus() {
+  private selectionLabel(): { tone: string; text: string } {
     const sel = this.s.selection;
     const n = sel.clips.length;
-    let tone = "idle";
-    let text = "Premiere indisponible";
-    if (sel.status === "no-project") text = "Aucun projet";
-    else if (sel.status === "no-sequence") text = "Aucune séquence";
-    else if (sel.status === "ok") {
-      tone = n ? "ok" : "warn";
-      text = n ? `${n} clip${n > 1 ? "s" : ""} sélectionné${n > 1 ? "s" : ""}` : "Aucun clip sélectionné";
-    }
+    if (sel.status === "no-project") return { tone: "idle", text: "Aucun projet" };
+    if (sel.status === "no-sequence") return { tone: "idle", text: "Aucune séquence" };
+    if (sel.status !== "ok") return { tone: "idle", text: "Premiere indisponible" };
+    return n ? { tone: "ok", text: `${n} clip${n > 1 ? "s" : ""} sélectionné${n > 1 ? "s" : ""}` } : { tone: "warn", text: "Aucun clip sélectionné" };
+  }
+
+  private renderStatus() {
+    const { tone, text } = this.selectionLabel();
     replaceChildren(this.els.pill, h("span", { class: cx("dot", tone) }), h("span", { class: "pill-text" }, text));
+    const sel = this.s.selection;
     const names = sel.clips.map((c) => c.name).filter(Boolean);
     this.els.pill.title =
-      sel.status === "ok" && n
-        ? `${names.join(", ")}${n > names.length ? "…" : ""}\nCliquer pour actualiser`
+      sel.status === "ok" && sel.clips.length
+        ? `${names.join(", ")}${sel.clips.length > names.length ? "…" : ""}\nCliquer pour actualiser`
         : "Sélectionnez un ou plusieurs clips dans la timeline · Cliquer pour actualiser";
-    this.updateApplyButton();
+    this.renderActionBar();
     this.updateNotice();
-    this.updateSummary();
   }
 
   /* ---------------------------------------------------------------- */
-  /* Navigation (barre latérale / onglets / puces)                      */
+  /* Rail de catégories (façon PX-Kinetype)                             */
   /* ---------------------------------------------------------------- */
 
   private matchesFilter(a: AnimationDefinition, f: Filter): boolean {
@@ -343,104 +382,81 @@ export class App {
   private setFilter(f: Filter) {
     this.s.filter = f;
     this.renderNav();
-    this.renderContext();
     this.renderGrid();
     this.els.gridScroll.scrollTop = 0;
+  }
+
+  private filterLabel(f: Filter): { title: string; color: string; iconName: string } {
+    if (f === "all") return { title: "Toutes les animations", color: "#EDEEF0", iconName: "all" };
+    if (f === "favorites") return { title: "Favoris", color: C.star, iconName: "star" };
+    if (f.startsWith("family:")) {
+      const fam = FAMILIES.find((x) => x.id === f.slice(7));
+      return { title: `Tout ${fam?.label.toLowerCase() ?? ""}`, color: "#EDEEF0", iconName: FAMILY_ICON[(fam?.id ?? "text") as FamilyId] };
+    }
+    const cat = CATEGORIES.find((c) => c.id === f);
+    return { title: cat?.label ?? "", color: CATEGORY_COLOR[f as CategoryId] ?? C.accent, iconName: f };
   }
 
   private renderNav() {
     const searchOnly = ANIMATIONS.filter((a) => matchesQuery(a, this.s.query));
     const count = (f: Filter) => searchOnly.filter((a) => this.matchesFilter(a, f)).length;
-    const active = (f: Filter) => this.s.filter === f;
     const present = CATEGORIES.filter((c) => ANIMATIONS.some((a) => a.category === c.id));
-
-    // Barre latérale (grand panneau)
-    const item = (f: Filter, label: string, iconName: string, sub = false) =>
-      h(
+    const btn = (f: Filter) => {
+      const { title, color, iconName } = this.filterLabel(f);
+      const on = this.s.filter === f;
+      const n = count(f);
+      return h(
         "button",
-        { type: "button", class: cx("nav-item", sub && "sub", active(f) && "active"), onclick: () => this.setFilter(f) },
-        icon(iconName, active(f) ? C.text : C.text3, 14, f === "favorites" && active(f)),
-        h("span", { class: "nav-label" }, label),
-        h("span", { class: "nav-count" }, String(count(f))),
+        {
+          type: "button",
+          class: cx("rail-btn", on && "active", !n && "is-empty"),
+          title: `${title} (${n})`,
+          "data-filter": f,
+          onclick: () => this.setFilter(f),
+        },
+        h("span", { class: "rail-dot", style: { backgroundColor: hexAlpha(color, on ? 0.3 : 0.14), borderColor: on ? color : "transparent" } }, icon(iconName, color, 17, f === "favorites" && on)),
       );
+    };
     replaceChildren(
-      this.els.sidebar,
-      item("all", "Toutes", "all"),
-      item("favorites", "Favoris", "star"),
+      this.els.rail,
+      btn("all"),
+      btn("favorites"),
       FAMILIES.map((fam) => [
-        h("div", { class: "nav-heading" }, fam.label),
-        item(`family:${fam.id}`, `Tout ${fam.label.toLowerCase()}`, FAMILY_ICON[fam.id]),
-        present.filter((c) => c.family === fam.id).map((c) => item(c.id, c.label, c.id, true)),
+        h("div", { class: "rail-sep", title: fam.label }, h("span", null, fam.label)),
+        btn(`family:${fam.id}`),
+        present.filter((c) => c.family === fam.id).map((c) => btn(c.id)),
       ]),
     );
 
-    // Onglets de famille + puces (panneaux plus étroits)
-    const famOfFilter: FamilyId | null = this.s.filter.startsWith("family:")
-      ? (this.s.filter.slice(7) as FamilyId)
-      : (CATEGORIES.find((c) => c.id === this.s.filter)?.family ?? null);
-    const tab = (f: Filter, label: string, on: boolean) =>
-      h("button", { type: "button", class: cx("ftab", on && "active"), onclick: () => this.setFilter(f) }, label, h("span", { class: "ftab-count" }, String(count(f))));
-    replaceChildren(
-      this.els.tabs,
-      tab("all", "Toutes", this.s.filter === "all"),
-      FAMILIES.map((fam) => tab(`family:${fam.id}`, fam.label, famOfFilter === fam.id)),
-      tab("favorites", "★ Favoris", this.s.filter === "favorites"),
-    );
-    const chip = (f: Filter, label: string, iconName: string) =>
+    // En-tête de la bibliothèque : catégorie courante + vue grille / liste
+    const { title, color } = this.filterLabel(this.s.filter);
+    const total = this.filtered().length;
+    const viewBtn = (list: boolean, iconName: string, label: string) =>
       h(
         "button",
-        { type: "button", class: cx("chip", active(f) && "active"), onclick: () => this.setFilter(active(f) && famOfFilter ? `family:${famOfFilter}` : f) },
-        icon(iconName, active(f) ? C.text : C.text3, 13),
-        h("span", null, label),
-        h("span", { class: "chip-count" }, String(count(f))),
+        {
+          type: "button",
+          class: cx("icon-btn small view-btn", this.s.listMode === list && "active"),
+          title: label,
+          onclick: () => {
+            this.s.listMode = list;
+            save("listMode", list);
+            this.root.classList.toggle("list-mode", list);
+            this.renderNav();
+            this.layoutGrid();
+            this.cardPlayers.forEach((p) => p.refresh());
+          },
+        },
+        icon(iconName, this.s.listMode === list ? C.text : C.text3, 15),
       );
-    const chipCats = famOfFilter ? present.filter((c) => c.family === famOfFilter) : [];
-    this.els.chips.classList.toggle("hidden", !chipCats.length);
-    replaceChildren(this.els.chips, chipCats.map((c) => chip(c.id, c.label, c.id)));
-  }
-
-  /** Barre de contexte : sens (entrée/sortie) et placement, comme dans Motion Bro. */
-  private renderContext() {
-    const list = this.filtered();
-    const hasEntrance = list.some((a) => a.kind === "entrance");
-    const hasAccent = list.some((a) => a.kind === "accent");
-    const parts: HTMLElement[] = [];
-    if (hasEntrance) {
-      parts.push(
-        h(
-          "div",
-          { class: "ctx-group" },
-          h("span", { class: "ctx-label" }, "Sens"),
-          segmented(MODE_OPTIONS, this.s.settings.mode, (m) => this.setMode(m)),
-        ),
-      );
-    }
-    if (hasAccent) {
-      parts.push(
-        h(
-          "div",
-          { class: "ctx-group" },
-          h("span", { class: "ctx-label" }, "Placer à"),
-          segmented(ANCHOR_OPTIONS, this.s.settings.anchor, (v) => this.setAnchor(v)),
-        ),
-      );
-    }
-    this.els.context.classList.toggle("hidden", !parts.length);
-    replaceChildren(this.els.context, parts);
-  }
-
-  private setMode(m: AnimationMode) {
-    this.updateSettings({ mode: m });
-    this.renderContext();
-    for (const p of this.cardPlayers) p.setMode(m);
-    this.refreshCardBadges();
-    this.renderInspector();
-  }
-
-  private setAnchor(v: AccentAnchor) {
-    this.updateSettings({ anchor: v });
-    this.renderContext();
-    this.renderInspector();
+    replaceChildren(
+      this.els.libHead,
+      h("span", { class: "lib-dot", style: { backgroundColor: color } }),
+      h("div", { class: "lib-title-wrap" }, h("div", { class: "lib-title" }, title), h("div", { class: "lib-sub" }, `${total} animation${total > 1 ? "s" : ""}`)),
+      h("div", { class: "spacer" }),
+      viewBtn(false, "all", "Vue grille"),
+      viewBtn(true, "list", "Vue liste"),
+    );
   }
 
   /* ---------------------------------------------------------------- */
@@ -503,6 +519,7 @@ export class App {
     player.setAnimation(a, this.paramsFor(a), this.s.settings.mode, this.s.settings.previewText || a.previewText);
     this.cardPlayers.push(player);
     const fav = this.s.favorites.includes(a.id);
+    const color = CATEGORY_COLOR[a.category];
     const favBtn = h(
       "button",
       {
@@ -514,7 +531,7 @@ export class App {
           this.toggleFavorite(a.id);
         },
       },
-      icon("star", fav ? C.star : C.text3, 14, fav),
+      icon("star", fav ? C.star : C.text2, 14, fav),
     );
     const quickApply = h(
       "button",
@@ -533,7 +550,7 @@ export class App {
     );
     const stage = h(
       "div",
-      { class: cx("stage card-stage", a.subject === "video" && "video") },
+      { class: cx("stage card-stage", `cat-${a.category}`, a.subject === "video" && "video") },
       player.el,
       favBtn,
       h("span", { class: cx("kind-badge", a.kind) }, this.kindBadge(a)),
@@ -548,7 +565,7 @@ export class App {
         tabIndex: 0,
         role: "button",
         "data-id": a.id,
-        title: "Clic : personnaliser · Double-clic : appliquer",
+        title: "Clic : sélectionner et régler · Double-clic : appliquer",
         onclick: () => this.select(a.id, true),
         ondblclick: () => void this.apply(a),
         onkeydown: (e: KeyboardEvent) => {
@@ -563,7 +580,12 @@ export class App {
         onblur: () => player.stop(),
       },
       stage,
-      h("div", { class: "card-meta" }, h("div", { class: "card-title" }, a.name), h("div", { class: "card-sub" }, a.tagline)),
+      h(
+        "div",
+        { class: "card-meta" },
+        h("div", { class: "card-title-row" }, h("span", { class: "card-cat-dot", style: { backgroundColor: color } }), h("span", { class: "card-title" }, a.name)),
+        h("div", { class: "card-sub" }, a.tagline),
+      ),
     );
     return h("div", { class: "card-cell" }, card);
   }
@@ -586,7 +608,7 @@ export class App {
       const on = this.s.favorites.includes(id);
       btn.classList.toggle("on", on);
       btn.title = on ? "Retirer des favoris" : "Ajouter aux favoris";
-      btn.innerHTML = iconSvg("star", on ? C.star : C.text3, 14, on);
+      btn.innerHTML = iconSvg("star", on ? C.star : C.text2, 14, on);
     }
   }
 
@@ -599,6 +621,7 @@ export class App {
     }
     if (changed) {
       this.renderInspector();
+      this.renderActionBar();
       if (this.s.settings.animatedPreviews && this.s.layout !== "narrow") this.mainPlayer?.play(true);
     }
     if (openInspector && this.s.layout === "narrow") {
@@ -610,7 +633,7 @@ export class App {
   }
 
   /* ---------------------------------------------------------------- */
-  /* Panneau de personnalisation                                        */
+  /* Panneau de personnalisation (onglets façon TypeMotion)             */
   /* ---------------------------------------------------------------- */
 
   private current(): AnimationDefinition {
@@ -626,7 +649,7 @@ export class App {
     if (persist) save("params", this.s.paramsById);
     this.mainPlayer?.setAnimation(a, params, this.s.settings.mode);
     if (persist && this.s.settings.animatedPreviews) this.mainPlayer?.play(true);
-    this.updateSummary();
+    this.renderActionBar();
   }
 
   private renderInspector() {
@@ -637,6 +660,7 @@ export class App {
     this.mainPlayer = player;
     const params = this.paramsFor(a);
     player.setAnimation(a, params, this.s.settings.mode, this.s.settings.previewText || a.previewText);
+    const color = CATEGORY_COLOR[a.category];
 
     // En-tête
     const category = CATEGORIES.find((c) => c.id === a.category);
@@ -662,7 +686,7 @@ export class App {
         "div",
         { class: "insp-title-wrap" },
         h("div", { class: "insp-title" }, a.name),
-        h("div", { class: "insp-cat" }, icon(a.category, C.text3, 12), `${category?.label ?? ""} · ${this.kindBadge(a)}`),
+        h("div", { class: "insp-cat" }, h("span", { class: "card-cat-dot", style: { backgroundColor: color } }), `${category?.label ?? ""} · ${this.kindBadge(a)}`),
       ),
       favWrap,
     );
@@ -712,7 +736,7 @@ export class App {
     const preview = h(
       "div",
       {
-        class: cx("stage main-stage", a.subject === "video" && "video"),
+        class: cx("stage main-stage", `cat-${a.category}`, a.subject === "video" && "video"),
         title: "Survoler pour rejouer",
         onmouseenter: () => this.s.settings.animatedPreviews && !player.playing && replay(),
       },
@@ -720,92 +744,105 @@ export class App {
       a.subject === "text" ? h("div", { class: "stage-safe" }) : null,
     );
 
-    // Propriétés Premiere utilisées
-    const props = [...new Set(a.uses.map((u) => PROPERTY_LABEL[u]))];
-    const uses = h("div", { class: "uses" }, h("span", { class: "uses-label" }, "Images clés Premiere :"), props.map((p) => h("span", { class: "tag" }, p)));
-
-    const notice = h("div", { class: "notice-slot" });
-    this.els.notice = notice;
-
-    // Placement selon la nature de l'animation
-    let placement: HTMLElement | null = null;
-    if (a.kind === "entrance") placement = segmented(MODE_OPTIONS, this.s.settings.mode, (m) => this.setMode(m), "Sens");
-    if (a.kind === "accent") placement = segmented(ANCHOR_OPTIONS, this.s.settings.anchor, (v) => this.setAnchor(v), "Placer l'effet à");
-
-    // Vitesse (barre de durée façon Motion Bro)
-    const durationSpec = a.params.find((p) => p.id === "duration") as NumberParam | undefined;
-    let speed: HTMLElement | null = null;
-    if (durationSpec) {
-      const cur = Number(params.duration);
-      const activeSpeed = SPEEDS.find((sp) => Math.abs(durationSpec.default / sp.factor - cur) < 0.011)?.value ?? "";
-      speed = segmented(
-        SPEEDS.map(({ value, label }) => ({ value, label })),
-        activeSpeed,
-        (v) => {
-          const f = SPEEDS.find((sp) => sp.value === v)?.factor ?? 1;
-          const d = Math.min(durationSpec.max, Math.max(durationSpec.min, Math.round((durationSpec.default / f) * 100) / 100));
-          this.setParams(a, { ...this.paramsFor(a), duration: d }, true);
-          this.renderInspector();
+    // Onglets
+    const tabBtn = (id: InspectorTab, label: string, count?: number) =>
+      h(
+        "button",
+        {
+          type: "button",
+          class: cx("tab", this.s.tab === id && "active"),
+          onclick: () => {
+            this.s.tab = id;
+            this.renderInspector();
+          },
         },
-        "Vitesse",
+        label,
+        count ? h("span", { class: "tab-count" }, String(count)) : null,
       );
-    }
+    const presetCount = this.s.presets.filter((p) => p.animationId === a.id).length;
+    const tabs = h("div", { class: "tabs" }, tabBtn("settings", "Réglages"), tabBtn("presets", "Presets", presetCount));
 
-    // Paramètres groupés
-    const groups: Record<string, HTMLElement[]> = { timing: [], motion: [], style: [] };
-    for (const spec of a.params) {
-      const value = params[spec.id];
-      const onValue = (v: number | string | boolean, final = true) => this.setParams(a, { ...this.paramsFor(a), [spec.id]: v }, final);
-      let el: HTMLElement;
-      if (spec.type === "number") el = slider(spec as NumberParam, Number(value), (v, final) => onValue(v, final)).el;
-      else if (spec.type === "choice") el = choice(spec, String(value), (v) => onValue(v));
-      else el = toggle(spec.label, Boolean(value), (v) => onValue(v), spec.hint);
-      groups[spec.group ?? "motion"].push(el);
-    }
-    const sections = (Object.keys(groups) as (keyof typeof GROUP_LABEL)[])
-      .filter((g) => groups[g].length)
-      .map((g) => h("div", { class: "section" }, h("div", { class: "section-title" }, GROUP_LABEL[g]), groups[g]));
-
-    const presetsSlot = h("div", { class: "section" });
-    this.renderPresetsSection(presetsSlot, a);
-
-    const resetBtn = h(
-      "button",
-      {
-        class: "btn ghost small",
-        type: "button",
-        title: "Revenir aux réglages par défaut",
-        onclick: () => {
-          this.setParams(a, defaultParams(a), true);
-          this.renderInspector();
-          this.toast("info", "Réglages réinitialisés");
+    let tabContent: HTMLElement[];
+    if (this.s.tab === "presets") {
+      const presetsSlot = h("div", { class: "section first" });
+      this.renderPresetsSection(presetsSlot, a);
+      tabContent = [presetsSlot];
+    } else {
+      const notice = h("div", { class: "notice-slot" });
+      this.els.notice = notice;
+      // Vitesse (barre de durée façon Motion Bro)
+      const durationSpec = a.params.find((p) => p.id === "duration") as NumberParam | undefined;
+      let speed: HTMLElement | null = null;
+      if (durationSpec) {
+        const cur = Number(params.duration);
+        const activeSpeed = SPEEDS.find((sp) => Math.abs(durationSpec.default / sp.factor - cur) < 0.011)?.value ?? "";
+        speed = segmented(
+          SPEEDS.map(({ value, label }) => ({ value, label })),
+          activeSpeed,
+          (v) => {
+            const f = SPEEDS.find((sp) => sp.value === v)?.factor ?? 1;
+            const d = Math.min(durationSpec.max, Math.max(durationSpec.min, Math.round((durationSpec.default / f) * 100) / 100));
+            this.setParams(a, { ...this.paramsFor(a), duration: d }, true);
+            this.renderInspector();
+          },
+          "Vitesse",
+        );
+      }
+      // Paramètres groupés
+      const groups: Record<string, HTMLElement[]> = { timing: [], motion: [], style: [] };
+      for (const spec of a.params) {
+        const value = params[spec.id];
+        const onValue = (v: number | string | boolean, final = true) => this.setParams(a, { ...this.paramsFor(a), [spec.id]: v }, final);
+        let el: HTMLElement;
+        if (spec.type === "number") el = slider(spec as NumberParam, Number(value), (v, final) => onValue(v, final)).el;
+        else if (spec.type === "choice" && spec.id === "easing") el = easingControl(spec, String(value), (v) => onValue(v));
+        else if (spec.type === "choice") el = choice(spec, String(value), (v) => onValue(v));
+        else el = toggle(spec.label, Boolean(value), (v) => onValue(v), spec.hint);
+        groups[spec.group ?? "motion"].push(el);
+      }
+      const sections = (Object.keys(groups) as (keyof typeof GROUP_LABEL)[])
+        .filter((g) => groups[g].length)
+        .map((g) => h("div", { class: "section" }, h("div", { class: "section-title" }, GROUP_LABEL[g]), groups[g]));
+      const props = [...new Set(a.uses.map((u) => PROPERTY_LABEL[u]))];
+      const resetBtn = h(
+        "button",
+        {
+          class: "btn ghost small",
+          type: "button",
+          title: "Revenir aux réglages par défaut",
+          onclick: () => {
+            this.setParams(a, defaultParams(a), true);
+            this.renderInspector();
+            this.toast("info", "Réglages réinitialisés");
+          },
         },
-      },
-      icon("reset", C.text2, 13),
-      "Réinitialiser",
-    );
-
-    const applyBtn = h("button", { class: "btn primary apply", type: "button", onclick: () => void this.apply() }) as HTMLButtonElement;
-    const applyNote = h("div", { class: "apply-note" });
-    this.els.applyBtn = applyBtn;
-    this.els.applyNote = applyNote;
+        icon("reset", C.text2, 13),
+        "Réinitialiser",
+      );
+      tabContent = [
+        notice,
+        speed ? h("div", { class: "section first" }, speed) : null,
+        ...sections,
+        h(
+          "div",
+          { class: "insp-actions" },
+          h("div", { class: "uses" }, h("span", { class: "uses-label" }, "Images clés :"), props.map((p) => h("span", { class: "tag" }, p))),
+          resetBtn,
+        ),
+      ].filter(Boolean) as HTMLElement[];
+    }
 
     const scroll = h(
       "div",
       { class: "scroll insp-scroll" },
-      h("div", { class: "insp-preview" }, preview, transport, uses),
+      h("div", { class: "insp-preview" }, preview, transport),
       h("p", { class: "insp-desc" }, a.description),
-      notice,
-      placement || speed ? h("div", { class: "section" }, placement, speed) : null,
-      sections,
-      presetsSlot,
-      h("div", { class: "insp-actions" }, resetBtn),
+      tabs,
+      tabContent,
     );
-    replaceChildren(this.els.inspector, header, scroll, h("div", { class: "insp-footer" }, applyNote, applyBtn));
+    replaceChildren(this.els.inspector, header, scroll);
     this.renderInspectorHeaderFav(favWrap);
-    this.updateApplyButton();
     this.updateNotice();
-    this.updateSummary();
     player.refresh();
     setPlayIcon();
   }
@@ -863,7 +900,7 @@ export class App {
             title: "Charger ce preset",
             onclick: () => {
               this.updateSettings({ mode: p.mode });
-              this.renderContext();
+              this.refreshCardBadges();
               this.setParams(a, sanitizeParams(a, p.params), true);
               this.renderInspector();
               this.toast("info", `Preset « ${p.name} » chargé`);
@@ -912,25 +949,6 @@ export class App {
     );
   }
 
-  private updateSummary() {
-    const note = this.els.applyNote;
-    if (!note) return;
-    const a = this.current();
-    const params = this.paramsFor(a);
-    const n = Math.max(1, this.s.selection.clips.length);
-    let text: string;
-    if (a.kind === "span") text = "Sur toute la durée de chaque clip";
-    else {
-      const motions = Array.from({ length: Math.min(n, 60) }, (_, i) => a.build(params, { index: i, count: n, clipDuration: 5 }));
-      const entry = Math.max(...motions.map((m) => m.delay + m.duration));
-      const where =
-        a.kind === "accent"
-          ? (ANCHOR_OPTIONS.find((o) => o.value === this.s.settings.anchor)?.label ?? "")
-          : (MODE_OPTIONS.find((m) => m.value === this.s.settings.mode)?.label ?? "");
-      text = `${where} · ${formatNumber(entry, 2)} s${n > 1 && a.kind === "entrance" ? ` · cascade sur ${n} clips` : ""}`;
-    }
-    replaceChildren(note, text);
-  }
 
   private updateNotice() {
     const slot = this.els.notice;
@@ -948,8 +966,8 @@ export class App {
               "Un mot par calque texte. ",
               "Premiere ne permet pas d'animer les mots à l'intérieur d'un seul texte : créez un calque par mot, sélectionnez-les tous, MotionCraft les enchaîne.",
             );
-    } else if (a.kind === "accent" && this.s.settings.anchor === "playhead") {
-      content = info("Effet ponctuel. ", "Placez la tête de lecture à l'endroit voulu dans le clip, puis appliquez.");
+    } else if (a.kind === "accent") {
+      content = info("Effet ponctuel. ", "Placez la tête de lecture dans le clip, puis « Appliquer à la tête de lecture ».");
     } else if (a.kind === "span") {
       content = info("Tout le clip. ", "L'effet couvre toute la durée de chaque clip sélectionné, quelle que soit sa longueur.");
     } else if (a.category === "transition") {
@@ -958,44 +976,100 @@ export class App {
     replaceChildren(slot, content);
   }
 
-  private updateApplyButton() {
-    const btn = this.els.applyBtn;
-    if (!btn) return;
+  /* ---------------------------------------------------------------- */
+  /* Barre d'action fixe (façon PX-Kinetype / TypeMotion)               */
+  /* ---------------------------------------------------------------- */
+
+  private renderActionBar() {
+    const bar = this.els.actionbar;
+    if (!bar) return;
+    const a = this.current();
     const sel = this.s.selection;
     const n = sel.clips.length;
     const ready = sel.status === "ok" && n > 0 && !this.s.applying;
-    btn.disabled = !ready;
-    btn.classList.toggle("disabled", !ready);
     this.root.classList.toggle("has-selection", ready);
-    if (this.s.applying) return;
-    let label = "Sélectionnez un clip";
-    if (sel.status === "no-host") label = "Ouvrez Premiere Pro";
-    else if (sel.status === "no-project") label = "Ouvrez un projet";
-    else if (sel.status === "no-sequence") label = "Ouvrez une séquence";
-    else if (n) label = n > 1 ? `Appliquer à ${n} clips` : "Appliquer";
-    replaceChildren(btn, icon(ready ? "wand" : "info", ready ? "#FFFFFF" : C.text3, 15), h("span", null, label), ready ? h("span", { class: "kbd light" }, isMac() ? "⌘↵" : "Ctrl↵") : null);
-    btn.title = ready ? "Ajoute de vraies images clés sur les clips sélectionnés" : "Sélectionnez un ou plusieurs clips dans la timeline Premiere Pro";
+    const { tone, text } = this.selectionLabel();
+    const params = this.paramsFor(a);
+
+    // Ligne d'état
+    let duration = "";
+    if (a.kind !== "span") {
+      const motions = Array.from({ length: Math.min(Math.max(1, n), 60) }, (_, i) => a.build(params, { index: i, count: Math.max(1, n), clipDuration: 5 }));
+      duration = `${formatNumber(Math.max(...motions.map((m) => m.delay + m.duration)), 2)} s`;
+    }
+    const status = h(
+      "div",
+      { class: "ab-status" },
+      h("span", { class: cx("dot", tone) }),
+      h("span", { class: "ab-anim" }, a.name),
+      h("span", { class: "ab-sep" }, "·"),
+      h("span", { class: "ab-text" }, this.s.applying ? this.s.status : `${text}${duration ? ` · ${duration}` : ""} · ${this.s.status}`),
+    );
+
+    const go = (opts: { mode?: AnimationMode; anchor?: AccentAnchor }) => () => void this.apply(a, opts);
+    const mk = (label: string, onclick: () => void, primary: boolean, extra?: { title?: string; active?: boolean; iconName?: string }) =>
+      h(
+        "button",
+        {
+          type: "button",
+          class: cx("ab-btn", primary && "primary", extra?.active && "active", !ready && "disabled"),
+          disabled: this.s.applying,
+          title: ready ? (extra?.title ?? "") : "Sélectionnez un ou plusieurs clips dans la timeline",
+          onclick,
+        },
+        extra?.iconName ? icon(extra.iconName, primary ? "#FFFFFF" : C.text, 14) : null,
+        h("span", null, label),
+      );
+
+    let buttons: HTMLElement[];
+    if (a.kind === "entrance") {
+      buttons = MODE_OPTIONS.map((m) =>
+        mk(m.label, go({ mode: m.value }), m.value === this.s.settings.mode, {
+          title: `Appliquer en ${m.label.toLowerCase()}`,
+          active: m.value === this.s.settings.mode,
+        }),
+      );
+    } else if (a.kind === "accent") {
+      buttons = [
+        mk("Appliquer à la tête de lecture", go({ anchor: "playhead" }), true, { iconName: "play", title: "Place l'effet à la position de la tête de lecture" }),
+        mk("Début", go({ anchor: "start" }), false, { title: "Au début du clip" }),
+        mk("Fin", go({ anchor: "end" }), false, { title: "À la fin du clip" }),
+      ];
+    } else {
+      buttons = [mk("Appliquer sur tout le clip", go({}), true, { iconName: "wand", title: "Couvre toute la durée de chaque clip sélectionné" })];
+    }
+    if (this.s.applying) buttons = [h("div", { class: "ab-busy" }, h("span", { class: "spinner" }), h("span", null, this.s.status))];
+    replaceChildren(bar, status, h("div", { class: cx("ab-actions", `n${buttons.length}`) }, buttons));
   }
 
   /* ---------------------------------------------------------------- */
   /* Application dans Premiere                                          */
   /* ---------------------------------------------------------------- */
 
-  private async apply(target?: AnimationDefinition) {
+  private async apply(target?: AnimationDefinition, opts: { mode?: AnimationMode; anchor?: AccentAnchor } = {}) {
     if (this.s.applying) return;
-    await this.refreshSelection();
     const a = target ?? this.current();
-    const btn = this.els.applyBtn;
+    if (opts.mode && opts.mode !== this.s.settings.mode) {
+      this.updateSettings({ mode: opts.mode });
+      this.refreshCardBadges();
+      this.cardPlayers.forEach((p) => p.setMode(opts.mode!));
+      this.mainPlayer?.setMode(opts.mode);
+    }
+    if (opts.anchor) this.updateSettings({ anchor: opts.anchor });
+    await this.refreshSelection();
     if (!this.s.selection.clips.length) {
       this.toast("warning", "Aucun clip sélectionné", "Sélectionnez un ou plusieurs clips dans la timeline, puis réessayez.");
+      this.renderActionBar();
       return;
     }
     this.s.applying = true;
+    this.s.status = "Application…";
     this.root.classList.add("is-applying");
-    btn?.classList.add("busy");
-    if (btn) btn.disabled = true;
-    const setBusy = (label: string) => btn && replaceChildren(btn, h("span", { class: "spinner" }), h("span", null, label));
-    setBusy("Application…");
+    this.renderActionBar();
+    const setBusy = (label: string) => {
+      this.s.status = label;
+      this.renderActionBar();
+    };
     try {
       const report = await applyAnimation({
         animation: a,
@@ -1007,27 +1081,27 @@ export class App {
       });
       const details = [`${report.keyCount} images clés · ${report.durationMs} ms`, ...report.failed.map((f) => `✕ ${f.name} : ${f.error}`), ...report.warnings];
       if (report.applied && !report.failed.length) {
+        this.s.status = `${a.name} appliqué.`;
         this.toast("success", `${a.name} appliqué${report.applied > 1 ? ` à ${report.applied} clips` : ""}`, `Annuler : ${isMac() ? "⌘Z" : "Ctrl+Z"}`, details);
       } else if (report.applied) {
+        this.s.status = `Appliqué à ${report.applied} clip(s), ${report.failed.length} en erreur.`;
         this.toast("warning", `${a.name} appliqué à ${report.applied} / ${report.applied + report.failed.length} clips`, "Certains clips n'ont pas pu être animés.", details);
       } else {
+        this.s.status = "Échec de l'application.";
         this.toast("error", "Aucun clip n'a pu être animé", report.failed[0]?.error, details);
       }
     } catch (e) {
+      this.s.status = "Échec de l'application.";
       const hint = e instanceof UserFacingError ? e.hint : "Ouvrez Réglages › Diagnostic et copiez le rapport pour analyse.";
       this.toast("error", messageOf(e), hint);
     } finally {
       this.s.applying = false;
       this.root.classList.remove("is-applying");
-      btn?.classList.remove("busy");
-      this.updateApplyButton();
+      this.renderActionBar();
       void this.refreshSelection(true);
     }
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Réglages                                                           */
-  /* ---------------------------------------------------------------- */
 
   private openSettings() {
     this.s.view = "settings";
@@ -1364,6 +1438,43 @@ function pickFileInBrowser(): Promise<string | null> {
     };
     input.click();
   });
+}
+
+/** Liste d'easing accompagnée de la courbe dessinée (façon TypeMotion). */
+function easingControl(spec: ChoiceParam, value: string, onChange: (v: string) => void): HTMLElement {
+  const graph = h("div", { class: "ease-graph", html: easingSvg(value) });
+  const ctl = select(spec, value, (v) => {
+    graph.innerHTML = easingSvg(v);
+    onChange(v);
+  });
+  ctl.classList.add("ease-control");
+  ctl.appendChild(graph);
+  return ctl;
+}
+
+function easingSvg(id: string): string {
+  const fn = getEasing(id);
+  const W = 120;
+  const H = 44;
+  const lo = -0.15;
+  const hi = 1.2;
+  const pts: string[] = [];
+  for (let i = 0; i <= 40; i++) {
+    const p = i / 40;
+    const v = fn(p);
+    pts.push(`${(p * W).toFixed(1)},${(H - ((v - lo) / (hi - lo)) * H).toFixed(1)}`);
+  }
+  const y0 = (H - ((0 - lo) / (hi - lo)) * H).toFixed(1);
+  const y1 = (H - ((1 - lo) / (hi - lo)) * H).toFixed(1);
+  return `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="M0 ${y0}H${W}M0 ${y1}H${W}" stroke="#2A2B32" stroke-width="1"/><polyline points="${pts.join(" ")}" fill="none" stroke="#8B7CFF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+/** #RRGGBB + alpha → rgba(). */
+function hexAlpha(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
