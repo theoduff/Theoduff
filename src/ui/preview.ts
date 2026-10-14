@@ -77,8 +77,6 @@ export class PreviewPlayer {
   private onTime?: (t: number, total: number) => void;
   private onEnd?: () => void;
   private video = false;
-  private stageW = 0;
-  private stageH = 0;
 
   constructor(private opts: PreviewOptions) {
     this.el = h("div", { class: "pv-layer" });
@@ -86,7 +84,6 @@ export class PreviewPlayer {
 
   /** Échelle px(1080p) → px d'aperçu. */
   private get pxScale() {
-    if (this.video) return (this.stageH || 100) / 1080;
     return this.opts.fontSize / (this.opts.referenceFontPx ?? 110);
   }
 
@@ -109,8 +106,6 @@ export class PreviewPlayer {
 
   /** Recalcule la taille de la scène (après insertion dans la page ou redimensionnement). */
   refresh() {
-    this.stageW = 0;
-    this.stageH = 0;
     this.renderAt(this.currentTime());
   }
 
@@ -205,7 +200,6 @@ export class PreviewPlayer {
     const def = this.def;
     if (!def) return;
     this.video = def.subject === "video";
-    this.stageW = 0;
     this.el.innerHTML = "";
     const needsGhosts = def.uses.includes("blur");
 
@@ -279,11 +273,6 @@ export class PreviewPlayer {
   }
 
   private renderAt(t: number) {
-    if (this.video && !this.stageW) {
-      const r = this.el.getBoundingClientRect();
-      this.stageW = r.width;
-      this.stageH = r.height;
-    }
     const k = this.pxScale;
     const inClip = t <= this.loopLength - GAP;
     for (const u of this.units) {
@@ -300,10 +289,15 @@ export class PreviewPlayer {
       opacity = Math.max(0, Math.min(1, opacity));
       const blurMix = blur > 0.05 ? Math.min(0.85, blur / (blur + 4)) : 0;
       if (this.video) {
-        renderScene(u.main, this.stageW, this.stageH, scale, x, y, rot, opacity * (1 - blurMix * 0.5));
+        // Valeurs brutes en px 1080p (indépendantes de la taille de la vignette).
+        const x0 = val("x", 0);
+        const y0 = val("y", 0);
+        const b0 = val("blur", 0);
+        const mix = b0 > 0.5 ? Math.min(0.85, b0 / (b0 + 30)) : 0;
+        renderScene(u.main, scale, x0, y0, rot, opacity * (1 - mix * 0.5));
         u.ghosts.forEach((g, i) => {
-          const r = blur * (i ? -0.8 : 0.8);
-          renderScene(g, this.stageW, this.stageH, scale * (1 + blur / 600), x + r, y, rot, blurMix ? opacity * blurMix * 0.45 : 0);
+          const r = b0 * 1.2 * (i ? -1 : 1);
+          renderScene(g, scale * (1 + b0 / 900), x0 + r, y0, rot, mix ? opacity * mix * 0.45 : 0);
         });
         continue;
       }
@@ -332,15 +326,19 @@ function styleText(el: HTMLElement, size: string, x: number, y: number, opacity:
   s.opacity = opacity.toFixed(3);
 }
 
-/** Positionne l'image simulée (zoom autour du centre, décalage, rotation). */
-function renderScene(el: HTMLElement, W: number, H: number, scale: number, x: number, y: number, rot: number, opacity: number) {
-  const w = W * scale;
-  const hgt = H * scale;
+/**
+ * Positionne l'image simulée (zoom autour du centre, décalage, rotation).
+ * Tout est exprimé en % de la scène : aucune mesure de taille n'est nécessaire
+ * (UXP renvoie souvent une taille nulle avant le premier affichage).
+ * Les décalages (px d'une image 1920×1080) sont convertis en % de l'image.
+ */
+function renderScene(el: HTMLElement, scale: number, x1080: number, y1080: number, rot: number, opacity: number) {
   const s = el.style;
-  s.width = `${w.toFixed(1)}px`;
-  s.height = `${hgt.toFixed(1)}px`;
-  s.left = `${((W - w) / 2 + x).toFixed(1)}px`;
-  s.top = `${((H - hgt) / 2 + y).toFixed(1)}px`;
+  const size = scale * 100;
+  s.width = `${size.toFixed(2)}%`;
+  s.height = `${size.toFixed(2)}%`;
+  s.left = `${((100 - size) / 2 + (x1080 / 1920) * 100).toFixed(2)}%`;
+  s.top = `${((100 - size) / 2 + (y1080 / 1080) * 100).toFixed(2)}%`;
   s.opacity = opacity.toFixed(3);
   const tr = Math.abs(rot) > 0.01 ? `rotate(${rot.toFixed(2)}deg)` : "";
   if (s.transform !== tr) s.transform = tr;

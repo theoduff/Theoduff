@@ -1,5 +1,16 @@
 # Journal des versions
 
+## 2.2.0 — correctifs d'affichage dans Premiere (constatés sur capture réelle)
+
+- Icônes invisibles : Premiere n'affiche pas le SVG en ligne. Les icônes sont désormais des fichiers SVG générés au build et affichés en `<img>`.
+- Boutons gris : Premiere impose son style aux `<button>` natifs. Tous les boutons sont des `<div role="button">` (clavier : Entrée / Espace) avec nos couleurs.
+- Vignettes vidéo noires : la scène est positionnée en pourcentages, sans mesurer la taille (nulle avant le premier affichage dans UXP).
+- Texte d'aperçu « doublé » : l'élément de mesure est rendu totalement invisible.
+- Courbe d'easing dessinée en points (plus de SVG).
+- Rail : libellé court sous chaque icône.
+- Champs de saisie : plus de double cadre dans Premiere.
+- Test d'interface : vérifie l'absence de `<button>` natif et de SVG en ligne, et le chargement de toutes les icônes.
+
 ## 2.1.0 — interface affinée (inspirée de PX-Kinetype, TypeMotion, Typoking)
 
 - Rail d'icônes de catégories en couleur, toujours visible (même panneau étroit).

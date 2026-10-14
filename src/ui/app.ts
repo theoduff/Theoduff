@@ -16,10 +16,10 @@ import { DEFAULT_SETTINGS, sanitizeSettings, type Settings } from "../state/sett
 import { load, save } from "../state/storage";
 import { choice, segmented, select, slider, textField, toggle } from "./controls";
 import { cx, formatNumber, h, replaceChildren } from "./dom";
-import { icon, iconSvg } from "./icons";
+import { icon } from "./icons";
 import { PreviewPlayer, suspendPreviews } from "./preview";
 
-export const VERSION = "2.1.0";
+export const VERSION = "2.2.0";
 
 type Filter = "all" | "favorites" | `family:${FamilyId}` | CategoryId;
 type View = "library" | "inspector" | "settings";
@@ -70,6 +70,24 @@ export const CATEGORY_COLOR: Record<CategoryId, string> = {
 };
 
 const FAMILY_ICON: Record<FamilyId, string> = { text: "word", video: "film" };
+
+/** Libellés courts affichés sous les icônes du rail. */
+const RAIL_LABEL: Record<string, string> = {
+  all: "Toutes",
+  favorites: "Favoris",
+  "family:text": "Texte",
+  "family:video": "Vidéo",
+  pop: "Pop",
+  blur: "Flou",
+  slide: "Glisser",
+  word: "Mots",
+  bounce: "Rebond",
+  accent: "Accent",
+  zoom: "Zoom",
+  shake: "Secousse",
+  camera: "Caméra",
+  transition: "Transition",
+};
 
 const C = {
   text: "#EDEEF0",
@@ -153,6 +171,7 @@ export class App {
 
   mount() {
     this.root.classList.add("mc-app");
+    if (getUxp()) this.root.classList.add("uxp");
     replaceChildren(this.root, this.buildShell());
     this.root.classList.toggle("list-mode", this.s.listMode);
     this.updateLayout();
@@ -263,7 +282,7 @@ export class App {
         h(
           "div",
           { class: "brand" },
-          h("span", { class: "logo", html: LOGO_SVG }),
+          h("span", { class: "logo" }, h("img", { src: "icons/plugin.svg", width: 22, height: 22, alt: "" })),
           h("span", { class: "brand-name" }, "MotionCraft"),
           h("span", { class: "badge-pro" }, "PRO"),
         ),
@@ -415,6 +434,7 @@ export class App {
           onclick: () => this.setFilter(f),
         },
         h("span", { class: "rail-dot", style: { backgroundColor: hexAlpha(color, on ? 0.3 : 0.14), borderColor: on ? color : "transparent" } }, icon(iconName, color, 17, f === "favorites" && on)),
+        h("span", { class: "rail-label" }, RAIL_LABEL[f] ?? title),
       );
     };
     replaceChildren(
@@ -422,7 +442,7 @@ export class App {
       btn("all"),
       btn("favorites"),
       FAMILIES.map((fam) => [
-        h("div", { class: "rail-sep", title: fam.label }, h("span", null, fam.label)),
+        h("div", { class: "rail-sep", title: fam.label }),
         btn(`family:${fam.id}`),
         present.filter((c) => c.family === fam.id).map((c) => btn(c.id)),
       ]),
@@ -474,7 +494,7 @@ export class App {
         h(
           "div",
           { class: "empty" },
-          h("div", { class: "empty-icon", html: iconSvg(fav ? "star" : "search", C.text3, 22) }),
+          h("div", { class: "empty-icon" }, icon(fav ? "star" : "search", C.text3, 22)),
           h("div", { class: "empty-title" }, fav ? "Aucun favori pour l'instant" : `Aucun résultat pour « ${this.s.query} »`),
           h("div", { class: "empty-text" }, fav ? "Cliquez sur l'étoile d'une animation pour la retrouver ici." : "Essayez « zoom », « shake », « flou » ou « mot »."),
           h(
@@ -608,7 +628,7 @@ export class App {
       const on = this.s.favorites.includes(id);
       btn.classList.toggle("on", on);
       btn.title = on ? "Retirer des favoris" : "Ajouter aux favoris";
-      btn.innerHTML = iconSvg("star", on ? C.star : C.text2, 14, on);
+      replaceChildren(btn, icon("star", on ? C.star : C.text2, 14, on));
     }
   }
 
@@ -695,7 +715,7 @@ export class App {
     const progress = h("div", { class: "tp-fill" });
     const timeLabel = h("span", { class: "tp-time" }, "0,00 s");
     const playBtn = h("button", { class: "icon-btn small", type: "button", title: "Lecture / pause" });
-    const setPlayIcon = () => (playBtn.innerHTML = iconSvg(player.playing ? "pause" : "play", C.text, 14, !player.playing));
+    const setPlayIcon = () => replaceChildren(playBtn, icon(player.playing ? "pause" : "play", C.text, 14, !player.playing));
     player.onStop(setPlayIcon);
     playBtn.addEventListener("click", () => {
       if (player.playing) player.pause();
@@ -1440,11 +1460,15 @@ function pickFileInBrowser(): Promise<string | null> {
   });
 }
 
-/** Liste d'easing accompagnée de la courbe dessinée (façon TypeMotion). */
+/**
+ * Liste d'easing accompagnée de la courbe dessinée (façon TypeMotion).
+ * Dessinée avec de petits points (div) : le SVG en ligne n'est pas affiché par UXP.
+ */
 function easingControl(spec: ChoiceParam, value: string, onChange: (v: string) => void): HTMLElement {
-  const graph = h("div", { class: "ease-graph", html: easingSvg(value) });
+  const graph = h("div", { class: "ease-graph" });
+  drawEasing(graph, value);
   const ctl = select(spec, value, (v) => {
-    graph.innerHTML = easingSvg(v);
+    drawEasing(graph, v);
     onChange(v);
   });
   ctl.classList.add("ease-control");
@@ -1452,21 +1476,20 @@ function easingControl(spec: ChoiceParam, value: string, onChange: (v: string) =
   return ctl;
 }
 
-function easingSvg(id: string): string {
+function drawEasing(graph: HTMLElement, id: string) {
   const fn = getEasing(id);
-  const W = 120;
-  const H = 44;
   const lo = -0.15;
   const hi = 1.2;
-  const pts: string[] = [];
-  for (let i = 0; i <= 40; i++) {
-    const p = i / 40;
-    const v = fn(p);
-    pts.push(`${(p * W).toFixed(1)},${(H - ((v - lo) / (hi - lo)) * H).toFixed(1)}`);
+  const yPct = (v: number) => (1 - (v - lo) / (hi - lo)) * 100;
+  const dots: HTMLElement[] = [
+    h("div", { class: "ease-line", style: { top: `${yPct(0).toFixed(1)}%` } }),
+    h("div", { class: "ease-line", style: { top: `${yPct(1).toFixed(1)}%` } }),
+  ];
+  for (let i = 0; i <= 48; i++) {
+    const p = i / 48;
+    dots.push(h("div", { class: "ease-dot", style: { left: `${(p * 100).toFixed(2)}%`, top: `${yPct(fn(p)).toFixed(2)}%` } }));
   }
-  const y0 = (H - ((0 - lo) / (hi - lo)) * H).toFixed(1);
-  const y1 = (H - ((1 - lo) / (hi - lo)) * H).toFixed(1);
-  return `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="M0 ${y0}H${W}M0 ${y1}H${W}" stroke="#2A2B32" stroke-width="1"/><polyline points="${pts.join(" ")}" fill="none" stroke="#8B7CFF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  replaceChildren(graph, h("div", { class: "ease-plot" }, dots));
 }
 
 /** #RRGGBB + alpha → rgba(). */
@@ -1485,6 +1508,3 @@ const isMac = () => {
     return true;
   }
 };
-
-const LOGO_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="1" y="1" width="22" height="22" rx="6.5" fill="#7C6CFF"/><path d="M6.5 16.5V8.2c0-.5.6-.8 1-.4l3.6 3.9c.5.5 1.3.5 1.8 0l3.6-3.9c.4-.4 1-.1 1 .4v8.3" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="17" r="1.3" fill="#fff"/></svg>`;
-

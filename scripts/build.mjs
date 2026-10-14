@@ -6,6 +6,7 @@ import * as esbuild from "esbuild";
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { generateIcons } from "./icons.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
@@ -24,6 +25,7 @@ function copyStatic(outDir, { harness = false } = {}) {
   mkdirSync(outDir, { recursive: true });
   cpSync(join(root, "plugin"), outDir, { recursive: true });
   cpSync(join(root, "src/styles/main.css"), join(outDir, "styles.css"));
+  generateIcons(root, outDir);
   if (harness) cpSync(join(root, "dev/index.html"), join(outDir, "index.html"));
 }
 

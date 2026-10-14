@@ -7,12 +7,35 @@ type Props = Record<string, unknown> & {
   html?: string;
 };
 
+/**
+ * Crée un élément. Particularité UXP : Premiere impose son propre style aux
+ * <button> natifs (fond gris, couleurs ignorées). Les « boutons » sont donc des
+ * <div role="button"> focalisables, activables au clavier (Entrée / Espace).
+ */
 export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props?: Props | null, ...children: Child[]): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
+  const isButton = tag === "button";
+  const el = document.createElement(isButton ? "div" : tag) as HTMLElementTagNameMap[K];
+  if (isButton) {
+    el.setAttribute("role", "button");
+    el.tabIndex = 0;
+    (el as HTMLElement).addEventListener("keydown", (e) => {
+      const key = (e as KeyboardEvent).key;
+      if ((key === "Enter" || key === " ") && e.target === el) {
+        e.preventDefault();
+        (el as HTMLElement).click();
+      }
+    });
+  }
   if (props) {
     for (const [k, v] of Object.entries(props)) {
       if (v === undefined || v === null || v === false) continue;
-      if (k === "class") el.className = String(v);
+      if (k === "type" && isButton) continue;
+      if (k === "onclick" && isButton && typeof v === "function") {
+        const fn = v as (e: Event) => void;
+        el.addEventListener("click", (e) => {
+          if (!el.hasAttribute("disabled")) fn(e);
+        });
+      } else if (k === "class") el.className = String(v);
       else if (k === "style") Object.assign(el.style, v as object);
       else if (k === "html") el.innerHTML = String(v);
       else if (k.startsWith("on") && typeof v === "function") {
@@ -22,6 +45,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props?: Props |
       } else el.setAttribute(k, v === true ? "" : String(v));
     }
   }
+  if (isButton) el.classList.add("ui-btn");
   append(el, children);
   return el;
 }

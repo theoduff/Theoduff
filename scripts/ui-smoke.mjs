@@ -62,6 +62,26 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
   await page.close();
 }
 
+// 1b. Contraintes de rendu UXP constatées dans Premiere
+{
+  const page = await open("sel=one&w=1100", { width: 1500, height: 860 });
+  await page.click(".card:has-text('Blur Reveal') .card-title");
+  await page.click(".rail-btn[data-filter='family:video']");
+  await page.waitForTimeout(400);
+  const ux = await page.evaluate(() => ({
+    buttons: document.querySelectorAll("#app button").length,
+    svgs: document.querySelectorAll("#app svg").length,
+    icons: [...document.querySelectorAll("#app img")].map((i) => [i.getAttribute("src"), i.complete && i.naturalWidth > 0]),
+    sceneBlank: [...document.querySelectorAll(".card-stage.video .pv-scene")].filter((e) => !e.style.width || e.style.width.endsWith("px")).length,
+  }));
+  check(ux.buttons === 0, `aucun <button> natif (UXP impose son style) : ${ux.buttons}`);
+  check(ux.svgs === 0, `aucun SVG en ligne (non affiché par UXP) : ${ux.svgs}`);
+  const broken = ux.icons.filter(([, ok]) => !ok);
+  check(ux.icons.length > 20 && broken.length === 0, `${ux.icons.length} icônes chargées${broken.length ? ` — manquantes : ${broken.map((b) => b[0]).join(", ")}` : ""}`);
+  check(ux.sceneBlank === 0, "vignettes vidéo dimensionnées en % (sans mesure)");
+  await page.close();
+}
+
 // 2. Effets vidéo : navigation, application en un clic depuis la vignette, tête de lecture
 {
   const page = await open("sel=one&w=1100", { width: 1500, height: 860 });
@@ -160,7 +180,7 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
   await p2.click(".ab-btn:has-text('tout le clip')");
   await p2.waitForSelector(".toast.success", { timeout: 8000 });
   check((await p2.textContent(".toast.success")).includes("30 clips"), "30 clips animés en une fois");
-  await p2.click("button[title='Réglages']");
+  await p2.click("[role=button][title='Réglages']");
   await p2.click("text=Inspecter la sélection");
   await p2.waitForTimeout(300);
   check((await p2.inputValue(".diag-out")).includes("AE.ADBE Motion"), "diagnostic de la sélection");
