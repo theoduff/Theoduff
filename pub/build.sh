@@ -17,6 +17,6 @@ python3 "$HERE/render_video.py" "$SRC" "$WORK/masks.npy" "$WORK/video.mp4"
 python3 "$HERE/render_audio.py" "$WORK/audio.wav"
 
 ffmpeg -v error -y -i "$WORK/video.mp4" -i "$WORK/audio.wav" \
-  -af "loudnorm=I=-14:TP=-1:LRA=9" -c:v copy -c:a aac -b:a 256k -ar 48000 -shortest \
+  -af "loudnorm=I=-19:TP=-2:LRA=11" -c:v copy -c:a aac -b:a 256k -ar 48000 -shortest \
   -movflags +faststart "$OUT"
 echo "-> $OUT"
