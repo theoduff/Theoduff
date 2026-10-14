@@ -347,24 +347,6 @@ def shimmer(d=1.8, density=60, lo=2600, hi=7000):
     return out * env[:, None] * 0.12
 
 
-def chime_arp(notes, step=0.045):
-    d = step * len(notes) + 1.6
-    out = np.zeros(int(d * SR))
-    for k, m in enumerate(notes):
-        b_ = bell(midi(m), 1.4)
-        i = int(k * step * SR)
-        out[i:i + len(b_)] += b_ * (0.7 + 0.3 * k / len(notes))
-    return out
-
-
-def power_up(d=0.5):
-    """Petit « tchiiing » ascendant, clin d'œil cartoon (potion magique)."""
-    t = tt(d)
-    f = 500 * 2 ** (3.2 * t / d)
-    sq = np.sign(np.sin(2 * np.pi * np.cumsum(f * (1 + 0.04 * np.sin(2 * np.pi * 28 * t))) / SR))
-    return lp(sq, 5000) * np.exp(-t / (d * 0.5)) * (1 - np.exp(-t / 0.01)) * 0.12
-
-
 # le verre
 place(sfx, glass_clink(), T_GRAB, gain=0.55, pan=-0.15, send=0.3)
 place(sfx, slosh(0.6), T_GRAB + 0.3, gain=0.6, pan=-0.1)
@@ -380,14 +362,11 @@ while t_g < T_SIP_END:
 rd = T_DROP - 2.8
 place(sfx, riser(rd), T_DROP - rd - 0.12, gain=0.55, send=0.3)
 place(sfx, reverse_cymbal(0.9), T_DROP - 0.9, gain=0.7, send=0.2)
-# DROP : l'effet potion
-place(sfx, boom(), T_DROP, gain=1.0)
-place(sfx, hp(noise(int(0.25 * SR)), 1500) * np.exp(-tt(0.25) / 0.04) * 0.5, T_DROP, gain=0.8)  # flash « clac »
-place(sfx, chime_arp([72, 76, 79, 84, 88, 91, 96]), T_DROP + 0.02, gain=0.45, send=0.6)
-place(sfx, shimmer(2.2, 55), T_DROP, gain=1.0, send=0.5)
-place(sfx, power_up(0.55), T_DROP + 0.05, gain=0.8, send=0.4)
-# scintillement qui persiste pendant l'aura
-place(sfx, shimmer(3.0, 18, 3500, 8000), T_DROP + 0.8, gain=0.6, send=0.5)
+# DROP : l'effet boost (impact sourd + léger souffle d'air, sans effet cartoon)
+place(sfx, boom(), T_DROP, gain=0.75)
+place(sfx, hp(noise(int(0.25 * SR)), 1500) * np.exp(-tt(0.25) / 0.04) * 0.5, T_DROP, gain=0.45)
+place(sfx, whoosh(0.5, 2000, 400, 0.15), T_DROP, gain=0.3, send=0.3)
+place(sfx, shimmer(1.2, 25), T_DROP, gain=0.3, send=0.4)
 # il sort du cadre (panoramique gauche -> droite)
 w = whoosh(0.7, 250, 3500, 0.55)
 pan_curve = np.linspace(-0.7, 0.9, len(w))

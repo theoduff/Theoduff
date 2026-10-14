@@ -1,4 +1,4 @@
-"""Rendu image : rampes de vitesse, zooms, étalonnage, effet « potion magique ».
+"""Rendu image : rampes de vitesse, zooms, étalonnage, effet « boost » discret.
 
 Usage : python3 render_video.py SOURCE.mov MASKS.npy OUT.mp4
 Les images sont envoyées brutes à ffmpeg (sans son ; le mix est ajouté ensuite).
@@ -117,7 +117,7 @@ def camera(t, ts):
         c = lerp(mid, hd + np.array([0, 230]), u)
     elif t < 9.0:
         d = t - T_DROP
-        s = lerp(1.62, 1.22, ease(d / 0.45))
+        s = lerp(1.54, 1.22, ease(d / 0.5))
         s = lerp(s, 1.06, ease((t - (T_DROP + 0.45)) / (9.0 - T_DROP - 0.45)))
         tgt = lerp(hd + np.array([0, 300]), lerp(bd, mid, 0.55), ease(d / 1.2))
         c = tgt
@@ -144,7 +144,7 @@ def grade(img, energy):
     """energy 0 = avant (un peu terne/froid), 1 = après (vif, chaud)."""
     x = img / 255.0
     lum = (x @ np.float32([0.299, 0.587, 0.114]))[..., None]
-    sat = lerp(0.82, 1.28, energy)
+    sat = lerp(0.88, 1.18, energy)
     x = lum + (x - lum) * sat
     # courbe en S douce
     con = lerp(1.06, 1.14, energy)
@@ -158,77 +158,6 @@ def grade(img, energy):
     return np.clip(x * 255, 0, 255)
 
 
-def make_sparkle(r):
-    g = np.zeros((2 * r + 1, 2 * r + 1), np.float32)
-    yy_, xx_ = np.mgrid[-r:r + 1, -r:r + 1].astype(np.float32)
-    d = np.sqrt(xx_ ** 2 + yy_ ** 2) + 1e-3
-    core = np.exp(-(d / (r * 0.12)) ** 2)
-    halo = np.exp(-(d / (r * 0.45)) ** 2) * 0.35
-    rays = (np.exp(-(np.abs(xx_) / 0.9) ** 2) + np.exp(-(np.abs(yy_) / 0.9) ** 2)) * np.exp(-d / (r * 0.55))
-    g = core + halo + rays * 0.8
-    return np.clip(g, 0, 1.5)
-
-
-SPRITES = {r: make_sparkle(r) for r in (6, 9, 13, 18)}
-GOLD = np.float32([255, 205, 95])
-WHITE_GOLD = np.float32([255, 240, 200])
-
-
-class Particle:
-    __slots__ = ("x", "y", "vx", "vy", "born", "life", "r", "ph")
-
-
-particles = []  # autour du personnage (espace source)
-
-
-def spawn(n, m_full, t, burst=False, plist=particles):
-    """Fait naître des étincelles sur le contour de la silhouette."""
-    edge = cv2.morphologyEx((m_full > 0.5).astype(np.uint8), cv2.MORPH_GRADIENT, np.ones((9, 9), np.uint8))
-    ys, xs = np.nonzero(edge)
-    if len(xs) == 0:
-        return
-    idx = rng.integers(0, len(xs), n)
-    for k in idx:
-        p = Particle()
-        p.x, p.y = float(xs[k]), float(ys[k])
-        if burst:
-            ang = rng.uniform(0, 2 * np.pi)
-            sp = rng.uniform(120, 420)
-            p.vx, p.vy = np.cos(ang) * sp, np.sin(ang) * sp - 150
-            p.life = rng.uniform(0.5, 1.1)
-        else:
-            p.vx, p.vy = rng.uniform(-25, 25), rng.uniform(-170, -60)
-            p.life = rng.uniform(0.6, 1.4)
-        p.born = t
-        p.r = int(rng.choice([6, 9, 9, 13, 18], p=[0.35, 0.3, 0.15, 0.13, 0.07]))
-        p.ph = rng.uniform(0, 2 * np.pi)
-        plist.append(p)
-
-
-def draw_particles(layer, t, dt, plist=particles):
-    alive = []
-    for p in plist:
-        age = t - p.born
-        if age > p.life:
-            continue
-        alive.append(p)
-        p.x += p.vx * dt
-        p.y += p.vy * dt
-        p.vx *= 0.94
-        p.vy = p.vy * 0.95 - 25 * dt
-        a = np.sin(np.pi * age / p.life) * (0.65 + 0.35 * np.sin(p.ph + age * 28))
-        spr = SPRITES[p.r]
-        r = p.r
-        x, y = int(p.x), int(p.y)
-        x0, y0, x1, y1 = x - r, y - r, x + r + 1, y + r + 1
-        if x1 <= 0 or y1 <= 0 or x0 >= W or y0 >= H:
-            continue
-        sx0, sy0 = max(0, -x0), max(0, -y0)
-        sx1, sy1 = spr.shape[1] - max(0, x1 - W), spr.shape[0] - max(0, y1 - H)
-        layer[max(0, y0):min(H, y1), max(0, x0):min(W, x1)] += spr[sy0:sy1, sx0:sx1] * a
-    plist[:] = alive
-
-
 # ---------------------------------------------------------------- rendu
 ff = subprocess.Popen([
     "ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
@@ -237,59 +166,32 @@ ff = subprocess.Popen([
 
 n_out = int(round(DUR * FPS))
 dt = 1.0 / FPS
-aura_t_off = 8.75   # l'aura s'éteint quand il quitte le cadre
 
 for fi in range(n_out):
     t = fi / FPS
     ts = src_time(t)
     img, m = interp_frame(ts)
-    m_full = cv2.resize(m, (W, H), interpolation=cv2.INTER_LINEAR) / 255.0
 
     energy = ease((t - T_DROP + 0.05) / 0.35)
     d = t - T_DROP
 
-    # ---- effet potion magique (espace source)
-    if d > -0.05 and t < aura_t_off + 0.6:
-        peak = env_hit(t, T_DROP, attack=0.05, decay=0.35)
-        sustain = 0.42 * ease(d / 0.2) * (1 - ease((t - aura_t_off) / 0.6))
-        pulse = 0.85 + 0.15 * np.sin(2 * np.pi * (t - T_DROP) / BEAT)
-        k = (0.6 * peak + sustain) * pulse
-        mb = (m_full > 0.5).astype(np.float32)
-        dil = cv2.dilate(mb, np.ones((15, 15), np.uint8))
-        outer = cv2.GaussianBlur(dil, (0, 0), 26) * (1 - m_full * 0.9)
-        rim = np.clip(mb - cv2.erode(mb, np.ones((7, 7), np.uint8)), 0, 1)
-        rim = cv2.GaussianBlur(rim, (0, 0), 3.5)
-        # le sujet s'illumine brièvement de l'intérieur
-        inner = m_full[..., None] * (0.12 * peak)
-        img = img * (1 + inner) + inner * 40
-        img = img + outer[..., None] * GOLD * (0.85 * k) + rim[..., None] * WHITE_GOLD * (1.1 * k)
-
-        # étincelles
-        if 0 <= d < dt:
-            spawn(90, m_full, t, burst=True)
-        if 0 < d and t < aura_t_off:
-            rate = 10 + 40 * peak
-            spawn(int(rng.poisson(rate * dt)), m_full, t)
-    if particles:
-        layer = np.zeros((H, W), np.float32)
-        draw_particles(layer, t, dt)
-        img = img + np.clip(layer, 0, 2)[..., None] * WHITE_GOLD * 0.95
-
-    # onde de choc discrète
-    if 0 <= d < 0.4:
-        bc = track(body, ts)
-        hc = track(head, ts)
-        cxy = lerp(bc, hc, 0.5)
-        rad = 40 + 900 * ease(d / 0.4) ** 0.7
-        dist = np.sqrt((xx - cxy[0]) ** 2 + (yy - cxy[1]) ** 2)
-        ring = np.exp(-((dist - rad) / (14 + 30 * d)) ** 2) * (1 - d / 0.4) * 0.55
-        img = img + ring[..., None] * WHITE_GOLD
+    # ---- effet boost : onde de déformation (sans couleur) qui part du torse
+    if 0 <= d < 0.5:
+        cxy = lerp(track(body, ts), track(head, ts), 0.45)
+        rad = 30 + 950 * ease(d / 0.5) ** 0.6
+        dx_, dy_ = xx - cxy[0], yy - cxy[1]
+        dist = np.sqrt(dx_ ** 2 + dy_ ** 2) + 1e-3
+        amp = 7.0 * (1 - d / 0.5) ** 1.5
+        disp = amp * np.exp(-((dist - rad) / 45) ** 2)
+        img = cv2.remap(img, (xx - dx_ / dist * disp).astype(np.float32), (yy - dy_ / dist * disp).astype(np.float32),
+                        cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
 
     # ---- caméra
     s, c = camera(t, ts)
+    s *= 1 + 0.012 * sum(env_hit(t, T_DROP + k * BEAT, 0.02, 0.1) for k in (1, 2))
     shk = 0.0
     if d > 0:
-        shk = 9 * np.exp(-d / 0.18)
+        shk = 4.5 * np.exp(-d / 0.15)
     shake = (rng.normal(0, shk), rng.normal(0, shk)) if shk > 0.3 else (0, 0)
     # micro-flottement « caméra à l'épaule » sur le push-in
     shake = (shake[0] + 1.5 * np.sin(t * 1.7), shake[1] + 1.2 * np.sin(t * 1.3 + 1))
@@ -298,7 +200,7 @@ for fi in range(n_out):
     img = grade(np.clip(img, 0, 255), energy)
 
     # aberration chromatique sur l'impact et la sortie du cadre
-    ca = 7 * env_hit(t, T_DROP, 0.03, 0.18) + 4 * env_hit(t, 8.55, 0.15, 0.2)
+    ca = 3 * env_hit(t, T_DROP, 0.03, 0.12)
     if ca > 0.4:
         Mr = np.float32([[1, 0, ca], [0, 1, 0]])
         Mb = np.float32([[1, 0, -ca], [0, 1, 0]])
@@ -307,9 +209,17 @@ for fi in range(n_out):
 
     # ---- flashs
     fl = 0.0
-    fl += 0.9 * env_hit(t, T_DROP, 0.04, 0.12)
+    fl += 0.22 * env_hit(t, T_DROP, 0.03, 0.08)
     if fl > 0.01:
-        img = lerp(img, np.full_like(img, 255) * np.float32([1, 0.97, 0.9]), min(fl, 1))
+        img = img * (1 + fl) + 25 * fl
+
+    # fuite de lumière chaude qui traverse le cadre (look pellicule)
+    lk = env_hit(t, T_DROP + 0.05, 0.08, 0.45)
+    if lk > 0.01:
+        lx = lerp(-250, W + 250, ease((t - T_DROP + 0.05) / 1.0))
+        g = np.exp(-(((xx - lx) / 260) ** 2 + ((yy - 300) / 700) ** 2))[..., None]
+        leak = g * np.float32([255, 150, 60]) * 0.55 * lk
+        img = 255 - (255 - img) * (1 - leak / 255)   # mode « écran »
 
     # fondu au noir final
     if t > DUR - 1.0:
