@@ -172,19 +172,6 @@ for fn, t0, dist, pan in events:
 
 
 # ------------------------------------------------------------------ bruitages
-def slosh(d=0.6):
-    out = np.zeros(int(d * SR))
-    for _ in range(18):
-        t0 = rng.uniform(0, d - 0.06)
-        t = tt(0.05)
-        f = rng.uniform(350, 900) * (1 + 2.5 * t)
-        b_ = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.01)
-        i = int(t0 * SR)
-        out[i:i + len(b_)] += b_ * rng.uniform(0.15, 0.5)
-    wash = filt(noise(len(out)), [300, 2000], "band") * np.sin(np.pi * np.arange(len(out)) / len(out)) * 0.3
-    return filt(out + wash, 2500, "low") * 0.35
-
-
 def drink_stream(d):
     """Liquide qui coule du verre aux lèvres : petites bulles (hauteur montante) + souffle humide."""
     n = int(d * SR)
@@ -228,7 +215,6 @@ def air_gust(d=1.6):
 
 
 # le verre
-place(foley, slosh(0.6), T_GRAB + 0.3, gain=0.55, pan=-0.1, send=0.1)
 place(foley, cloth(0.4), T_GRAB + 0.2, gain=0.6)
 # gorgées
 place(foley, drink_stream(T_SIP_END - T_SIP_START), T_SIP_START, gain=0.9)
