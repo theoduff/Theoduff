@@ -4,13 +4,12 @@ from scipy.interpolate import PchipInterpolator
 
 FPS = 30
 SR = 48000
-DUR = 13.0
+DUR = 11.0
 
 BPM = 125.2
 BEAT = 60.0 / BPM
 T_DROP = 12 * BEAT          # ~5.75 s : fin de la gorgée -> effet "potion magique"
-T_LOGO = T_DROP + 8 * BEAT  # apparition du logo, calée sur une mesure
-T_END = T_DROP + 12 * BEAT  # stinger final
+T_END = T_DROP + 8 * BEAT   # stinger final, calé sur une mesure
 
 # Remappage temps sortie -> temps source (rampes de vitesse lissées)
 _KEYS = np.array([

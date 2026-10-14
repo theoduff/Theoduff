@@ -7,7 +7,7 @@ import numpy as np
 from scipy import signal
 from scipy.io import wavfile
 
-from timeline import SR, DUR, BEAT, T_DROP, T_LOGO, T_END, T_GRAB, T_SIP_START, T_SIP_END, T_EXIT
+from timeline import SR, DUR, BEAT, T_DROP, T_END, T_GRAB, T_SIP_START, T_SIP_END, T_EXIT
 
 OUT = sys.argv[1]
 rng = np.random.default_rng(3)
@@ -219,7 +219,7 @@ for k in range(16):
 
 # --- après le drop : groove complet jusqu'au stinger final
 duck = np.ones(N)
-post_bars = 3
+post_bars = 2
 for bar in range(post_bars):
     ch = PROG[bar % 4]
     t0 = beat_t(4 * bar)
@@ -365,16 +365,6 @@ def power_up(d=0.5):
     return lp(sq, 5000) * np.exp(-t / (d * 0.5)) * (1 - np.exp(-t / 0.01)) * 0.12
 
 
-def soft_thump():
-    t = tt(0.5)
-    f = 45 + 60 * np.exp(-t / 0.05)
-    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.18) * 0.6
-
-
-# ouverture : souffle + impact feutré sous le titre
-place(sfx, whoosh(0.5, 300, 4000, 0.85), -0.2, gain=0.5, send=0.3)
-place(sfx, soft_thump(), 0.27, gain=0.8)
-place(sfx, bell(midi(81), 1.2), 0.27, gain=0.15, send=0.6)
 # le verre
 place(sfx, glass_clink(), T_GRAB, gain=0.55, pan=-0.15, send=0.3)
 place(sfx, slosh(0.6), T_GRAB + 0.3, gain=0.6, pan=-0.1)
@@ -403,12 +393,6 @@ w = whoosh(0.7, 250, 3500, 0.55)
 pan_curve = np.linspace(-0.7, 0.9, len(w))
 ws = np.stack([w * np.cos((pan_curve + 1) * np.pi / 4), w * np.sin((pan_curve + 1) * np.pi / 4)], 1) * np.sqrt(2)
 place(sfx, ws, T_EXIT - 0.38, gain=0.7, send=0.2)
-# logo
-place(sfx, reverse_cymbal(0.6), T_LOGO - 0.6, gain=0.5, send=0.3)
-place(sfx, whoosh(0.4, 600, 6000, 0.8), T_LOGO - 0.32, gain=0.45)
-place(sfx, boom(1.2), T_LOGO, gain=0.6)
-place(sfx, chime_arp([84, 88, 91, 96], 0.06), T_LOGO, gain=0.35, send=0.7)
-place(sfx, shimmer(1.6, 40), T_LOGO, gain=0.8, send=0.5)
 place(sfx, bell(midi(88), 2.0), T_END, gain=0.25, send=0.8)
 
 # ------------------------------------------------------------------ réverb + mix

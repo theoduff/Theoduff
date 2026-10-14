@@ -1,4 +1,4 @@
-"""Rendu image : rampes de vitesse, zooms, étalonnage, effet « potion magique », titrages.
+"""Rendu image : rampes de vitesse, zooms, étalonnage, effet « potion magique ».
 
 Usage : python3 render_video.py SOURCE.mov MASKS.npy OUT.mp4
 Les images sont envoyées brutes à ffmpeg (sans son ; le mix est ajouté ensuite).
@@ -7,13 +7,11 @@ import sys
 import subprocess
 import numpy as np
 import cv2
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-from timeline import FPS, DUR, BEAT, T_DROP, T_LOGO, T_END, src_time
+from timeline import FPS, DUR, BEAT, T_DROP, src_time
 
 SRC, MASKS, OUT = sys.argv[1:4]
 W, H = 720, 1280
-FONT = "/usr/share/fonts/opentype/inter/"
 rng = np.random.default_rng(7)
 
 # ---------------------------------------------------------------- sources
@@ -180,8 +178,7 @@ class Particle:
     __slots__ = ("x", "y", "vx", "vy", "born", "life", "r", "ph")
 
 
-particles = []      # autour du personnage (espace source)
-logo_particles = []  # autour du logo (espace écran)
+particles = []  # autour du personnage (espace source)
 
 
 def spawn(n, m_full, t, burst=False, plist=particles):
@@ -230,87 +227,6 @@ def draw_particles(layer, t, dt, plist=particles):
         sx1, sy1 = spr.shape[1] - max(0, x1 - W), spr.shape[0] - max(0, y1 - H)
         layer[max(0, y0):min(H, y1), max(0, x0):min(W, x1)] += spr[sy0:sy1, sx0:sx1] * a
     plist[:] = alive
-
-
-# ---------------------------------------------------------------- titrages
-def font(name, size):
-    return ImageFont.truetype(FONT + name, size)
-
-
-def text_layer(lines, glow_col=None, glow_r=0):
-    """lines: [(texte, police, taille, couleur RGBA, y, tracking)] -> RGBA float (H,W,4)."""
-    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    for txt, fname, size, col, y, track_px in lines:
-        f = font(fname, size)
-        widths = [d.textlength(ch, font=f) for ch in txt]
-        total = sum(widths) + track_px * (len(txt) - 1)
-        x = (W - total) / 2
-        for ch, w_ in zip(txt, widths):
-            d.text((x, y), ch, font=f, fill=col)
-            x += w_ + track_px
-    arr = np.asarray(im).astype(np.float32) / 255.0
-    if glow_col is not None:
-        a = np.asarray(im.split()[3].filter(ImageFilter.GaussianBlur(glow_r))).astype(np.float32) / 255.0
-        return arr, a
-    return arr, None
-
-
-def gold_fill(alpha_im):
-    """Dégradé or vertical appliqué à un masque de texte."""
-    a = np.asarray(alpha_im).astype(np.float32) / 255.0
-    ys = np.nonzero(a.any(1))[0]
-    y0, y1 = (ys[0], ys[-1]) if len(ys) else (0, H)
-    g = np.clip((yy - y0) / max(1, y1 - y0), 0, 1)[..., None]
-    top = np.float32([255, 236, 170]) / 255
-    mid = np.float32([248, 190, 70]) / 255
-    bot = np.float32([200, 120, 30]) / 255
-    col = np.where(g < 0.5, lerp(top, mid, g * 2), lerp(mid, bot, (g - 0.5) * 2))
-    # reflet brillant
-    return col, a
-
-
-# Titre d'ouverture
-intro_rgba, intro_glow = text_layer(
-    [("COUP DE MOU ?", "InterDisplay-Black.otf", 64, (255, 255, 255, 255), 170, 4)],
-    glow_col=True, glow_r=14)
-
-# Carton final
-logo_im = Image.new("L", (W, H), 0)
-ld = ImageDraw.Draw(logo_im)
-f_logo = font("InterDisplay-Black.otf", 150)
-txt = "POTION"
-widths = [ld.textlength(ch, font=f_logo) for ch in txt]
-trk = 6
-x = (W - sum(widths) - trk * (len(txt) - 1)) / 2
-for ch, w_ in zip(txt, widths):
-    ld.text((x, 560), ch, font=f_logo, fill=255)
-    x += w_ + trk
-# icône fiole + éclair
-cx_, cy_ = W // 2, 470
-ld.ellipse((cx_ - 46, cy_ - 30, cx_ + 46, cy_ + 62), outline=255, width=9)
-ld.rectangle((cx_ - 17, cy_ - 74, cx_ + 17, cy_ - 26), outline=255, width=9)
-ld.rectangle((cx_ - 26, cy_ - 86, cx_ + 26, cy_ - 72), fill=255)
-ld.polygon([(cx_ + 6, cy_ - 14), (cx_ - 20, cy_ + 22), (cx_ - 2, cy_ + 22),
-            (cx_ - 10, cy_ + 50), (cx_ + 20, cy_ + 10), (cx_ + 2, cy_ + 10)], fill=255)
-LOGO_COL, LOGO_A = gold_fill(logo_im)
-LOGO_GLOW = np.asarray(logo_im.filter(ImageFilter.GaussianBlur(22))).astype(np.float32) / 255.0
-
-tag_rgba, _ = text_layer([("L'ÉNERGIE MAGIQUE.", "Inter-SemiBold.otf", 38, (255, 255, 255, 255), 755, 7)])
-legal_rgba, _ = text_layer([
-    ("Teneur élevée en caféine. Déconseillé aux enfants", "Inter-Regular.otf", 17, (255, 255, 255, 200), 1180, 0),
-    ("et aux femmes enceintes ou allaitantes.", "Inter-Regular.otf", 17, (255, 255, 255, 200), 1203, 0),
-])
-
-
-def over(dst, rgba, alpha_mul=1.0, offset_y=0, scale=1.0):
-    if alpha_mul <= 0.001:
-        return dst
-    if scale != 1.0 or offset_y:
-        M = np.float32([[scale, 0, (1 - scale) * W / 2], [0, scale, (1 - scale) * H / 2 + offset_y]])
-        rgba = cv2.warpAffine(rgba, M, (W, H), flags=cv2.INTER_LINEAR)
-    a = rgba[..., 3:4] * alpha_mul
-    return dst * (1 - a) + rgba[..., :3] * 255 * a
 
 
 # ---------------------------------------------------------------- rendu
@@ -389,59 +305,15 @@ for fi in range(n_out):
         img[..., 0] = cv2.warpAffine(img[..., 0], Mr, (W, H), borderMode=cv2.BORDER_REFLECT)
         img[..., 2] = cv2.warpAffine(img[..., 2], Mb, (W, H), borderMode=cv2.BORDER_REFLECT)
 
-    # ---- carton final : flou + assombrissement
-    if t >= T_LOGO - 0.35:
-        u = ease((t - (T_LOGO - 0.35)) / 0.5)
-        blur = cv2.GaussianBlur(img, (0, 0), 1 + 18 * u)
-        img = lerp(img, blur * 0.26, u)
-        # halo chaud derrière le logo
-        g = np.exp(-(((xx - W / 2) / 330) ** 2 + ((yy - 560) / 300) ** 2))
-        img = img + g[..., None] * np.float32([90, 50, 10]) * u * (0.85 + 0.15 * np.sin(t * 3))
-
-    # ---- titrages
-    if 0.25 < t < 2.4:
-        a_in = ease((t - 0.25) / 0.25)
-        a_out = 1 - ease((t - 2.1) / 0.3)
-        sc = 1.0 + 0.04 * (t - 0.25) + 0.12 * (1 - a_in)
-        M = np.float32([[sc, 0, (1 - sc) * W / 2], [0, sc, (1 - sc) * 200]])
-        gl = cv2.warpAffine(intro_glow, M, (W, H))
-        img = img * (1 - 0.35 * gl[..., None] * a_in * a_out)
-        img = over(img, cv2.warpAffine(intro_rgba, M, (W, H)), a_in * a_out)
-
-    if t >= T_LOGO:
-        u = t - T_LOGO
-        a_in = ease(u / 0.18)
-        sc = 1.0 + 0.25 * np.exp(-u / 0.09) + 0.015 * u
-        M = np.float32([[sc, 0, (1 - sc) * W / 2], [0, sc, (1 - sc) * 560]])
-        la = cv2.warpAffine(LOGO_A, M, (W, H))[..., None] * a_in
-        lg = cv2.warpAffine(LOGO_GLOW, M, (W, H))[..., None] * a_in
-        # reflet qui balaie le logo
-        sweep = np.exp(-(((xx + yy * 0.35) - (-300 + 1400 * ease((u - 0.25) / 0.7))) / 40) ** 2)[..., None]
-        col = LOGO_COL * 255 * (1 + 0.9 * sweep)
-        img = img * (1 - 0.45 * lg) + lg * np.float32([255, 170, 50]) * 0.25
-        img = img * (1 - la) + col * la
-        img = over(img, tag_rgba, ease((u - 0.55) / 0.3), offset_y=18 * (1 - ease((u - 0.55) / 0.3)))
-        img = over(img, legal_rgba, ease((u - 0.9) / 0.4))
-        if 0 <= u < dt * 1.01:
-            # gerbe d'étincelles autour du logo
-            lm = cv2.dilate((LOGO_A > 0.5).astype(np.float32), np.ones((5, 5), np.uint8))
-            spawn(70, lm, t, burst=True, plist=logo_particles)
-        if logo_particles:
-            layer = np.zeros((H, W), np.float32)
-            draw_particles(layer, t, dt, logo_particles)
-            img = img + np.clip(layer, 0, 2)[..., None] * WHITE_GOLD * 0.9
-
     # ---- flashs
     fl = 0.0
     fl += 0.9 * env_hit(t, T_DROP, 0.04, 0.12)
-    fl += 0.55 * env_hit(t, T_LOGO, 0.02, 0.12)
-    fl += 0.35 * env_hit(t, T_END, 0.02, 0.12)
     if fl > 0.01:
         img = lerp(img, np.full_like(img, 255) * np.float32([1, 0.97, 0.9]), min(fl, 1))
 
     # fondu au noir final
-    if t > DUR - 0.5:
-        img = img * (1 - ease((t - (DUR - 0.5)) / 0.5))
+    if t > DUR - 1.0:
+        img = img * (1 - ease((t - (DUR - 1.0)) / 1.0))
     # ouverture au noir
     if t < 0.2:
         img = img * ease(t / 0.2)
