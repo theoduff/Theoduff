@@ -19,7 +19,7 @@ import { cx, formatNumber, h, replaceChildren } from "./dom";
 import { icon } from "./icons";
 import { PreviewPlayer, suspendPreviews } from "./preview";
 
-export const VERSION = "2.3.0";
+export const VERSION = "3.0.0";
 
 type Filter = "all" | "favorites" | `family:${FamilyId}` | CategoryId;
 type View = "library" | "inspector" | "settings";
@@ -47,6 +47,11 @@ const PROPERTY_LABEL: Record<TrackKey, string> = {
   y: "Position",
   rotation: "Rotation",
   blur: "Flou gaussien",
+  cropL: "Recadrage",
+  cropR: "Recadrage",
+  cropT: "Recadrage",
+  cropB: "Recadrage",
+  bright: "Luminosité",
 };
 
 const GROUP_LABEL: Record<NonNullable<ParamSpec["group"]>, string> = {
@@ -67,9 +72,12 @@ export const CATEGORY_COLOR: Record<CategoryId, string> = {
   shake: "#F87171",
   camera: "#38BDF8",
   transition: "#F5A524",
+  edit: "#34D399",
+  native: "#60A5FA",
+  fx: "#FBBF24",
 };
 
-const FAMILY_ICON: Record<FamilyId, string> = { text: "word", video: "film" };
+const FAMILY_ICON: Record<FamilyId, string> = { text: "word", video: "film", edit: "scissors" };
 
 /** Libellés courts affichés sous les icônes du rail. */
 const RAIL_LABEL: Record<string, string> = {
@@ -77,6 +85,10 @@ const RAIL_LABEL: Record<string, string> = {
   favorites: "Favoris",
   "family:text": "Texte",
   "family:video": "Vidéo",
+  "family:edit": "Montage",
+  edit: "Zooms",
+  native: "Transit. Pr",
+  fx: "Effets",
   pop: "Pop",
   blur: "Flou",
   slide: "Glisser",
@@ -521,6 +533,7 @@ export class App {
   }
 
   private kindBadge(a: AnimationDefinition): string {
+    if (a.kind === "native") return "Transition Pr";
     if (a.kind === "accent") return "Ponctuel";
     if (a.kind === "span") return "Tout le clip";
     return MODE_OPTIONS.find((m) => m.value === this.s.settings.mode)?.label ?? "Entrée";
@@ -986,8 +999,10 @@ export class App {
               "Un mot par calque texte. ",
               "Premiere ne permet pas d'animer les mots à l'intérieur d'un seul texte : créez un calque par mot, sélectionnez-les tous, MotionCraft les enchaîne.",
             );
+    } else if (a.kind === "native") {
+      content = info("Transition native Premiere. ", "Sélectionnez les clips qui se suivent sur la timeline : la transition est posée sur chaque coupe (modifiable ensuite dans Premiere).");
     } else if (a.kind === "accent") {
-      content = info("Effet ponctuel. ", "Placez la tête de lecture dans le clip, puis « Appliquer à la tête de lecture ».");
+      content = info("Effet ponctuel. ", "À la tête de lecture, au début, à la fin, ou sur chaque marqueur de séquence (touche M) — idéal pour caler les effets sur la musique.");
     } else if (a.kind === "span") {
       content = info("Tout le clip. ", "L'effet couvre toute la durée de chaque clip sélectionné, quelle que soit sa longueur.");
     } else if (a.category === "transition") {
@@ -1054,7 +1069,10 @@ export class App {
         mk("Appliquer à la tête de lecture", go({ anchor: "playhead" }), true, { iconName: "play", title: "Place l'effet à la position de la tête de lecture" }),
         mk("Début", go({ anchor: "start" }), false, { title: "Au début du clip" }),
         mk("Fin", go({ anchor: "end" }), false, { title: "À la fin du clip" }),
+        mk("Marqueurs", go({ anchor: "markers" }), false, { iconName: "marker", title: "Un effet sur chaque marqueur de séquence situé dans les clips sélectionnés" }),
       ];
+    } else if (a.kind === "native") {
+      buttons = [mk("Poser la transition", go({}), true, { iconName: "native", title: "Ajoute la transition native de Premiere selon l'emplacement choisi" })];
     } else {
       buttons = [mk("Appliquer sur tout le clip", go({}), true, { iconName: "wand", title: "Couvre toute la durée de chaque clip sélectionné" })];
     }
@@ -1102,7 +1120,13 @@ export class App {
       const details = [`${report.keyCount} images clés · ${report.durationMs} ms`, ...report.failed.map((f) => `✕ ${f.name} : ${f.error}`), ...report.warnings];
       if (report.applied && !report.failed.length) {
         this.s.status = `${a.name} appliqué.`;
-        this.toast("success", `${a.name} appliqué${report.applied > 1 ? ` à ${report.applied} clips` : ""}`, `Annuler : ${isMac() ? "⌘Z" : "Ctrl+Z"}`, details);
+        const unit = a.kind === "native" ? (report.applied > 1 ? "transitions posées" : "transition posée") : null;
+        this.toast(
+          "success",
+          unit ? `${a.name} : ${report.applied} ${unit}` : `${a.name} appliqué${report.applied > 1 ? ` à ${report.applied} clips` : ""}`,
+          `Annuler : ${isMac() ? "⌘Z" : "Ctrl+Z"}`,
+          details,
+        );
       } else if (report.applied) {
         this.s.status = `Appliqué à ${report.applied} clip(s), ${report.failed.length} en erreur.`;
         this.toast("warning", `${a.name} appliqué à ${report.applied} / ${report.applied + report.failed.length} clips`, "Certains clips n'ont pas pu être animés.", details);

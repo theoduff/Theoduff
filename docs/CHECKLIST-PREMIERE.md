@@ -77,3 +77,16 @@ Merci de me transmettre ce tableau rempli : les ❌ et les rapports de diagnosti
 | E5 | Zoom Blur en « Sortie » sur le clip A, en « Entrée » sur le clip B | Transition fluide entre les deux | |
 | E6 | Spin Zoom | Rotation + zoom + flou, sans saut final | |
 | E7 | Bouton « Appliquer » d'une vignette et double-clic | Application directe avec les réglages actuels | |
+
+## F. Montage (V3)
+
+| # | Test | Attendu | Résultat |
+|---|---|---|---|
+| F1 | Réglages › Diagnostic › Inspecter : lignes « Effets MotionCraft » et « Transitions vidéo disponibles » | Aucun effet « INTROUVABLE » ; liste des transitions (me l'envoyer) | |
+| F2 | 3 plans qui se suivent, « Fondu enchaîné » › Poser la transition | 2 fondus sur les 2 coupes, durée réglée | |
+| F3 | Chacune des 12 transitions natives | Posée, ou message « introuvable » (noter lesquelles) | |
+| F4 | Marqueurs (M) sur 3 temps forts, Beat Zoom › Marqueurs | Un zoom sur chaque marqueur | |
+| F5 | Jump Cut Zoom sur 4 plans consécutifs | Cadrage large / serré alterné | |
+| F6 | Wipe et Typewriter sur un texte | Effet Recadrage ajouté une seule fois, volet net | |
+| F7 | Flash / Flash Cut | Effet Luminosité et contraste ajouté, éclair visible | |
+| F8 | Bandes cinéma / Bandes animées | Bandes noires en haut et en bas | |

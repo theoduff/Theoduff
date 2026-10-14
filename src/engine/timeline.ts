@@ -8,8 +8,8 @@ import { REST_VALUES, type AnimationMode, type Motion, type TrackKey } from "./t
 /** Comment placer une animation dans un clip. */
 export type PlacementSpec =
   | { type: "entrance"; mode: AnimationMode }
-  /** `at` : début de l'effet, en secondes depuis le début du clip. */
-  | { type: "accent"; at: number }
+  /** `at` : début de l'effet (s depuis le début du clip) ; plusieurs valeurs = un effet par instant (marqueurs). */
+  | { type: "accent"; at: number | number[] }
   | { type: "span" };
 
 export interface Placement {
@@ -83,15 +83,33 @@ export function placeMotion(
 
   if (placementSpec.type === "accent") {
     const length = delay + duration;
-    const start = clamp(placementSpec.at, 0, Math.max(0, lastVisible - length));
-    if (placementSpec.at > start + 1e-6) warnings.push("La tête de lecture était trop près de la fin du clip : l'effet a été avancé.");
-    const end = start + length;
+    const ats = (Array.isArray(placementSpec.at) ? placementSpec.at : [placementSpec.at]).slice().sort((a, b) => a - b);
+    const starts: number[] = [];
+    for (const at of ats) {
+      const start = clamp(at, 0, Math.max(0, lastVisible - length));
+      if (at > start + 1e-6 && ats.length === 1) warnings.push("La tête de lecture était trop près de la fin du clip : l'effet a été avancé.");
+      // Deux effets qui se chevauchent : le second attend la fin du premier.
+      const prevEnd = starts.length ? starts[starts.length - 1] + length : -Infinity;
+      if (start < prevEnd - 1e-9) continue;
+      starts.push(start);
+    }
+    if (ats.length > 1 && starts.length < ats.length) {
+      warnings.push(`${ats.length - starts.length} marqueur(s) ignoré(s) : trop proches les uns des autres pour la durée de l'effet.`);
+    }
     const valueAt = (key: TrackKey, t: number): number => {
-      if (t < start) return REST_VALUES[key];
-      if (t > end) return motion.holdEnd ? localValue(key, length) : REST_VALUES[key];
-      return localValue(key, t - start);
+      for (let i = starts.length - 1; i >= 0; i--) {
+        const start = starts[i];
+        if (t >= start) {
+          if (t <= start + length) return localValue(key, t - start);
+          return motion.holdEnd ? localValue(key, length) : REST_VALUES[key];
+        }
+      }
+      return REST_VALUES[key];
     };
-    return { tracks, valueAt, regions: [[start, end]], placement: { timeScale, start, end, warnings } };
+    const regions = starts.map((s0): [number, number] => [s0, s0 + length]);
+    const first = starts[0] ?? 0;
+    const last = starts.length ? starts[starts.length - 1] + length : 0;
+    return { tracks, valueAt, regions, placement: { timeScale, start: first, end: last, warnings } };
   }
 
   const mode = placementSpec.mode;

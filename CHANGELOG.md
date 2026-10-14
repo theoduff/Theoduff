@@ -1,5 +1,24 @@
 # Journal des versions
 
+## 3.0.0 — outil de montage complet (46 outils)
+
+**Nouvelle famille « Montage »**
+- Transitions natives Premiere (12) posées sur les coupes entre clips sélectionnés, ou au début / à la fin : Fondu enchaîné, Fondu au noir, Fondu au blanc, Fondu film, Fondu additif, Pousser, Glissement, Zoom croisé, Volet, Iris rond, Portes, Division.
+- Zooms de montage : Jump Cut Zoom (alterne plan large / serré sur des plans consécutifs), Beat Zoom.
+- Effets : Flash, Flash Cut, Bandes cinéma, Bandes animées (effets natifs Luminosité et contraste, Recadrage).
+- Effets ponctuels « Sur les marqueurs » : un effet sur chaque marqueur de séquence (calage sur la musique), pour tous les effets ponctuels (Zoom Punch, Shake, Flash, Pulse…).
+
+**Texte : 7 animations de plus**
+- Fade, Zoom In, Spin In, Swing, Wipe (volet), Typewriter (lettre par lettre), Flicker (néon).
+
+**Vidéo**
+- Wipe (plan) : révélation d'un plan par volet.
+
+**Moteur et intégration**
+- Effets natifs ajoutés et réutilisés automatiquement : Flou gaussien, Recadrage, Luminosité et contraste (détection par nom interne ou nom affiché, toutes langues).
+- Diagnostic enrichi : effets et transitions réellement disponibles dans votre Premiere, nombre de marqueurs.
+- 71 tests (dont 13 nouveaux), test d'interface étendu au montage.
+
 ## 2.3.0 — icônes et rail corrigés dans Premiere (2e capture réelle)
 
 - Icônes remplies en noir : le moteur UXP rend mal les SVG « au trait ». Toutes les icônes (interface, menu Fenêtre, liste des plugins) sont maintenant des PNG 2× générés au build avec resvg.

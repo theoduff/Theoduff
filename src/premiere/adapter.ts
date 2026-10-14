@@ -24,9 +24,11 @@ import type {
   TickTime,
   VideoClipTrackItem,
   VideoFilterComponent,
+  VideoTransition,
+  AddTransitionOptions,
 } from "@adobe/premierepro";
 import { buildClipPlan, clipPointToScreen, looksNormalized, type ClipPlan, type ClipState, type Point } from "../engine/plan";
-import type { AccentAnchor, AnimationDefinition, AnimationMode, ParamValues } from "../engine/types";
+import type { AccentAnchor, AnimationDefinition, AnimationMode, ParamValues, TrackKey } from "../engine/types";
 import type { PlacementSpec } from "../engine/timeline";
 import { normalize } from "../animations/registry";
 import type { Settings } from "../state/settings";
@@ -39,6 +41,78 @@ export const MATCH = {
   opacity: "AE.ADBE Opacity",
   blur: ["AE.ADBE Gaussian Blur 2", "AE.ADBE Gaussian Blur"],
 } as const;
+
+/** Effets natifs que MotionCraft sait ajouter et animer. */
+export type EffectId = "blur" | "crop" | "bright";
+
+interface EffectSpec {
+  id: EffectId;
+  label: string;
+  /** Motifs du matchName, du plus précis au plus large. */
+  matchNames: RegExp[];
+  /** Motifs du nom affiché (toutes langues courantes), en repli. */
+  displayNames: RegExp[];
+  /** Propriété animée → index du paramètre dans l'effet. */
+  params: Partial<Record<TrackKey, number>>;
+}
+
+export const EFFECTS: readonly EffectSpec[] = [
+  {
+    id: "blur",
+    label: "Flou gaussien",
+    matchNames: [/^AE\.ADBE Gaussian Blur 2$/i, /^AE\.ADBE Gaussian Blur$/i, /gaussian ?blur/i],
+    displayNames: [/gaussian blur|flou gaussien|gau(ß|ss)scher weichzeichner|desenfoque gaussiano|sfocatura gaussiana/i],
+    params: { blur: 0 },
+  },
+  {
+    id: "crop",
+    label: "Recadrage",
+    matchNames: [/^AE\.ADBE AECrop$/i, /^AE\.ADBE Crop$/i, /\bcrop\b/i],
+    displayNames: [/^(crop|recadrage|rogner|zuschneiden|recortar|ritaglia)$/i],
+    params: { cropL: 0, cropT: 1, cropR: 2, cropB: 3 },
+  },
+  {
+    id: "bright",
+    label: "Luminosité et contraste",
+    matchNames: [/brightness ?(&|and)? ?contrast/i],
+    displayNames: [/brightness (&|and) contrast|luminosit[ée] (et|&) contraste|helligkeit (und|&) kontrast|brillo y contraste|luminosit[àa] e contrasto/i],
+    params: { bright: 0 },
+  },
+];
+
+/** Effet → matchName disponible dans ce Premiere (ou null). */
+export type EffectNames = Partial<Record<EffectId, string | null>>;
+
+export async function resolveEffects(ppro: premierepro): Promise<EffectNames> {
+  const out: EffectNames = {};
+  let names: string[] = [];
+  let displays: string[] = [];
+  try {
+    names = await ppro.VideoFilterFactory.getMatchNames();
+  } catch {
+    names = [];
+  }
+  try {
+    displays = await ppro.VideoFilterFactory.getDisplayNames();
+  } catch {
+    displays = [];
+  }
+  for (const fx of EFFECTS) {
+    let found: string | null = null;
+    for (const re of fx.matchNames) {
+      found = names.find((n) => re.test(n)) ?? null;
+      if (found) break;
+    }
+    if (!found && displays.length === names.length) {
+      const i = displays.findIndex((d) => fx.displayNames.some((re) => re.test(d)));
+      if (i >= 0) found = names[i];
+    }
+    out[fx.id] = found ?? (fx.id === "blur" ? MATCH.blur[0] : null);
+  }
+  return out;
+}
+
+const effectOfTrack = (key: TrackKey) => EFFECTS.find((fx) => key in fx.params);
 
 /** Noms d'affichage connus (normalisés) dans les langues courantes de Premiere. */
 const ALIASES = {
@@ -198,7 +272,8 @@ interface ParamRefs {
   rotation: ComponentParam;
   anchor: ComponentParam;
   opacity: ComponentParam;
-  blur?: ComponentParam;
+  /** Paramètres des effets natifs présents sur le clip (dernière occurrence). */
+  effects: Partial<Record<EffectId, ComponentParam[]>>;
 }
 
 interface PreparedClip {
@@ -289,7 +364,7 @@ function keyframeTime(ctx: HostContext, clip: Pick<PreparedClip, "start" | "inPo
   return ctx.ppro.TickTime.createWithTicks(String(Math.round(origin + frame * ctx.ticksPerFrame)));
 }
 
-async function prepareClip(ctx: HostContext, item: VideoClipTrackItem, settings: Settings): Promise<PreparedClip> {
+async function prepareClip(ctx: HostContext, item: VideoClipTrackItem, settings: Settings, fx: EffectNames = {}): Promise<PreparedClip> {
   const name = (await item.getName()) || "Clip";
   const start = await item.getStartTime();
   const end = await item.getEndTime();
@@ -315,10 +390,11 @@ async function prepareClip(ctx: HostContext, item: VideoClipTrackItem, settings:
     rotation: req(findParam(motionParams, ALIASES.rotation, MOTION_INDEX.rotation), "Rotation"),
     anchor: req(findParam(motionParams, ALIASES.anchor, MOTION_INDEX.anchor), "Point d'ancrage"),
     opacity: req(findParam(opacityParams, ALIASES.opacity, 0), "Opacité"),
+    effects: {},
   };
-  // Réutilise le dernier Flou gaussien du clip (évite d'empiler les effets à chaque application).
-  const blurIdx = lastIndexOfAny(matchNames, MATCH.blur);
-  if (blurIdx >= 0) params.blur = paramsOf(ctx.project, components[blurIdx])[0];
+  // Réutilise la dernière occurrence de chaque effet (évite d'empiler les effets à chaque application).
+  const fxIdx = locateEffects(ctx.project, components, matchNames, fx, params.effects);
+  const blurIdx = fxIdx.blur ?? -1;
 
   // Valeurs « au repos » : au milieu du clip si déjà animé (entre une entrée et une sortie).
   const mid = ctx.ppro.TickTime.createWithTicks(
@@ -350,9 +426,34 @@ async function prepareClip(ctx: HostContext, item: VideoClipTrackItem, settings:
     opacity,
     rotation,
   };
-  const { pivot, source } = await resolvePivot(ctx, components, matchNames, [motionIdx, opacityIdx, blurIdx], state, mid, settings);
+  const { pivot, source } = await resolvePivot(ctx, components, matchNames, [motionIdx, opacityIdx, blurIdx, ...Object.values(fxIdx)], state, mid, settings);
   state.pivot = pivot;
   return { item, name, start, inPoint, durationFrames, chain, components, matchNames, params, state, uniform, scaleWidth, pivotSource: source };
+}
+
+/** Repère les effets natifs déjà présents et range leurs paramètres. Renvoie leurs index. */
+function locateEffects(
+  project: Project,
+  components: Component[],
+  matchNames: string[],
+  fx: EffectNames,
+  into: Partial<Record<EffectId, ComponentParam[]>>,
+): Partial<Record<EffectId, number>> {
+  const idx: Partial<Record<EffectId, number>> = {};
+  for (const spec of EFFECTS) {
+    const wanted = fx[spec.id];
+    let i = -1;
+    for (let k = matchNames.length - 1; k >= 0 && i < 0; k--) {
+      const n = matchNames[k];
+      if ((wanted && n === wanted) || (!wanted && spec.matchNames.some((re) => re.test(n)))) i = k;
+    }
+    if (spec.id === "blur" && i < 0) i = lastIndexOfAny(matchNames, MATCH.blur);
+    if (i >= 0) {
+      idx[spec.id] = i;
+      into[spec.id] = paramsOf(project, components[i]);
+    }
+  }
+  return idx;
 }
 
 function indexOrFallback(names: string[], wanted: readonly string[], fallback: number) {
@@ -453,7 +554,13 @@ function writeTargets(c: PreparedClip): WriteTarget[] {
   }
   if (plan.opacity?.length) out.push({ param: c.params.opacity, keys: plan.opacity });
   if (plan.rotation?.length) out.push({ param: c.params.rotation, keys: plan.rotation });
-  if (plan.blur?.length && c.params.blur) out.push({ param: c.params.blur, keys: plan.blur });
+  const blurParam = c.params.effects.blur?.[0];
+  if (plan.blur?.length && blurParam) out.push({ param: blurParam, keys: plan.blur });
+  for (const [key, keys] of Object.entries(plan.effects ?? {}) as [TrackKey, { frame: number; value: number }[]][]) {
+    const spec = effectOfTrack(key);
+    const param = spec ? c.params.effects[spec.id]?.[spec.params[key] ?? 0] : undefined;
+    if (param && keys?.length) out.push({ param, keys });
+  }
   if (plan.position?.length) out.push({ param: c.params.position, keys: plan.position });
   return out;
 }
@@ -464,22 +571,23 @@ type Op =
   | { op: "timeVarying"; param: ComponentParam }
   | { op: "removeRange"; param: ComponentParam; from: TickTime; to: TickTime }
   | { op: "addKey"; param: ComponentParam; value: number | Point; time: TickTime }
-  | { op: "linear"; param: ComponentParam; time: TickTime };
+  | { op: "linear"; param: ComponentParam; time: TickTime }
+  | { op: "transition"; item: VideoClipTrackItem; transition: VideoTransition; options: AddTransitionOptions };
 
 /**
  * Exécute une étape d'écriture pour tous les clips en UNE transaction (un seul
  * Cmd+Z). En cas d'échec global, rejoue clip par clip pour isoler le fautif.
  */
-function runStep(
+function runStep<T>(
   ppro: premierepro,
   project: Project,
   label: string,
-  clips: PreparedClip[],
-  describeOps: (clip: PreparedClip) => Op[],
-): Map<PreparedClip, string> {
-  const failures = new Map<PreparedClip, string>();
+  clips: T[],
+  describeOps: (clip: T) => Op[],
+): Map<T, string> {
+  const failures = new Map<T, string>();
   const opsByClip = new Map(clips.map((c) => [c, describeOps(c)] as const));
-  const attempt = (subset: PreparedClip[]): boolean => {
+  const attempt = (subset: T[]): boolean => {
     const ops = subset.flatMap((c) => opsByClip.get(c) ?? []);
     if (!ops.length) return true;
     let ok = false;
@@ -503,6 +611,9 @@ function runStep(
               compound.addAction(o.param.createAddKeyframeAction(kf));
               break;
             }
+            case "transition":
+              compound.addAction(o.item.createAddVideoTransitionAction(o.transition, o.options));
+              break;
             case "linear":
               compound.addAction(
                 o.param.createSetInterpolationAtKeyframeAction(o.time, ppro.Constants.InterpolationMode.LINEAR, false),
@@ -536,10 +647,11 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
   if (!ctx.clips.length) {
     throw new UserFacingError(
       "Aucun clip vidéo ou texte sélectionné.",
-      "Sélectionnez un ou plusieurs textes dans la timeline, puis réessayez.",
+      "Sélectionnez un ou plusieurs clips dans la timeline, puis réessayez.",
     );
   }
   const { animation, params, mode, settings, onProgress } = req;
+  if (animation.kind === "native") return applyNativeTransition(ctx, req, t0);
   const anchor = req.anchor ?? "playhead";
   const report: ApplyReport = { applied: 0, failed: [], warnings: [], keyCount: 0, durationMs: 0 };
   const ordered = await sortForReading(ctx.clips);
@@ -558,19 +670,30 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
       report.warnings.push("Position de la tête de lecture illisible : effet placé au début du clip.");
     }
   }
+  let markerTimes: number[] = [];
+  if (animation.kind === "accent" && anchor === "markers") {
+    markerTimes = await readSequenceMarkers(ctx);
+    if (!markerTimes.length) {
+      throw new UserFacingError(
+        "Aucun marqueur dans la séquence.",
+        "Placez des marqueurs de séquence sur les temps forts (touche M, tête de lecture dans la timeline), puis réessayez.",
+      );
+    }
+  }
+  const fxNames = await resolveEffects(ctx.ppro);
 
   // 1. Lecture de l'état de chaque clip + calcul des images clés.
   let clips: PreparedClip[] = [];
   for (let i = 0; i < ordered.length; i++) {
     onProgress?.(i, total, "Analyse des clips");
     try {
-      const clip = await prepareClip(ctx, ordered[i], settings);
+      const clip = await prepareClip(ctx, ordered[i], settings, fxNames);
       const clipDuration = clip.durationFrames / ctx.fps;
       const motion = animation.build(params, { index: i, count: total, clipDuration });
       let spec: PlacementSpec = { type: "entrance", mode };
       if (animation.kind === "span") spec = { type: "span" };
       if (animation.kind === "accent") {
-        let at = 0;
+        let at: number | number[] = 0;
         if (anchor === "end") at = clipDuration;
         if (anchor === "playhead") {
           at = playhead - clip.start.seconds;
@@ -578,6 +701,14 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
             report.warnings.push(`${clip.name} : la tête de lecture est hors du clip, effet placé au début.`);
             at = 0;
           }
+        }
+        if (anchor === "markers") {
+          const inside = markerTimes.map((m) => m - clip.start.seconds).filter((m) => m >= 0 && m < clipDuration);
+          if (!inside.length) {
+            report.failed.push({ name: clip.name, error: "aucun marqueur de séquence dans ce clip" });
+            continue;
+          }
+          at = inside;
         }
         spec = { type: "accent", at };
       }
@@ -593,33 +724,49 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
     clips = clips.filter((c) => !failures.has(c));
   };
 
-  // 2. Effet Flou gaussien manquant : instances créées AVANT la transaction (API asynchrone).
-  const needBlur = clips.filter((c) => c.plan?.blur?.length && !c.params.blur);
-  if (needBlur.length) {
-    onProgress?.(total, total, "Ajout du Flou gaussien");
-    const blurName = await availableBlurMatchName(ctx.ppro);
-    const instances = new Map<PreparedClip, Awaited<ReturnType<premierepro["VideoFilterFactory"]["createComponent"]>>>();
-    for (const c of needBlur) {
-      try {
-        instances.set(c, await ctx.ppro.VideoFilterFactory.createComponent(blurName));
-      } catch (e) {
-        report.warnings.push(`${c.name} : Flou gaussien indisponible (${errorMessage(e)}), animé sans flou.`);
-      }
+  // 2. Effets natifs manquants (Flou, Recadrage, Luminosité) : instances créées AVANT la transaction.
+  const needed = (c: PreparedClip): EffectId[] => {
+    const ids = new Set<EffectId>();
+    if (c.plan?.blur?.length) ids.add("blur");
+    for (const key of Object.keys(c.plan?.effects ?? {}) as TrackKey[]) {
+      const spec = effectOfTrack(key);
+      if (spec) ids.add(spec.id);
     }
-    const withBlur = needBlur.filter((c) => instances.has(c));
-    const failures = runStep(ctx.ppro, ctx.project, `${label} — Flou gaussien`, withBlur, (c) => [
-      { op: "append", chain: c.chain, component: instances.get(c)! },
-    ]);
+    return [...ids].filter((id) => !c.params.effects[id]);
+  };
+  const toAdd = clips.map((c) => ({ c, ids: needed(c) })).filter((x) => x.ids.length);
+  if (toAdd.length) {
+    onProgress?.(total, total, "Ajout des effets");
+    const instances = new Map<PreparedClip, { id: EffectId; component: VideoFilterComponent }[]>();
+    for (const { c, ids } of toAdd) {
+      const list: { id: EffectId; component: VideoFilterComponent }[] = [];
+      for (const id of ids) {
+        const spec = EFFECTS.find((x) => x.id === id)!;
+        const matchName = fxNames[id];
+        if (!matchName) {
+          report.warnings.push(`${c.name} : effet « ${spec.label} » introuvable dans votre Premiere, partie de l'animation ignorée.`);
+          continue;
+        }
+        try {
+          list.push({ id, component: await ctx.ppro.VideoFilterFactory.createComponent(matchName) });
+        } catch (e) {
+          report.warnings.push(`${c.name} : effet « ${spec.label} » indisponible (${errorMessage(e)}).`);
+        }
+      }
+      if (list.length) instances.set(c, list);
+    }
+    const withFx = [...instances.keys()];
+    const failures = runStep(ctx.ppro, ctx.project, `${label} — effets`, withFx, (c) =>
+      instances.get(c)!.map((x): Op => ({ op: "append", chain: c.chain, component: x.component })),
+    );
     drop(failures);
-    // Relecture de la chaîne pour récupérer le paramètre « Flou » du nouvel effet.
-    for (const c of withBlur.filter((x) => !failures.has(x))) {
+    // Relecture de la chaîne pour récupérer les paramètres des nouveaux effets.
+    for (const c of withFx.filter((x) => !failures.has(x))) {
       c.chain = await c.item.getComponentChain();
       const comps = listComponents(ctx.project, c.chain);
       const names: string[] = [];
       for (const comp of comps) names.push(await comp.getMatchName());
-      const idx = lastIndexOfAny(names, MATCH.blur);
-      if (idx >= 0) c.params.blur = paramsOf(ctx.project, comps[idx])[0];
-      else report.warnings.push(`${c.name} : Flou gaussien ajouté mais introuvable, animé sans flou.`);
+      locateEffects(ctx.project, comps, names, fxNames, c.params.effects);
     }
   }
 
@@ -681,14 +828,100 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
   return report;
 }
 
-async function availableBlurMatchName(ppro: premierepro): Promise<string> {
+/** Instants (s, temps de séquence) des marqueurs de la séquence active. */
+async function readSequenceMarkers(ctx: HostContext): Promise<number[]> {
   try {
-    const names = await ppro.VideoFilterFactory.getMatchNames();
-    for (const m of MATCH.blur) if (names.includes(m)) return m;
+    const markers = await ctx.ppro.Markers.getMarkers(ctx.sequence);
+    const list = markers.getMarkers();
+    return list.map((m) => m.getStart().seconds).filter((t) => Number.isFinite(t)).sort((a, b) => a - b);
   } catch {
-    /* ignore */
+    return [];
   }
-  return MATCH.blur[0];
+}
+
+/* ------------------------------------------------------------------ */
+/* Transitions natives                                                   */
+/* ------------------------------------------------------------------ */
+
+interface TransitionTarget {
+  name: string;
+  item: VideoClipTrackItem;
+  atStart: boolean;
+}
+
+async function applyNativeTransition(ctx: HostContext, req: ApplyRequest, t0: number): Promise<ApplyReport> {
+  const { animation, params } = req;
+  const report: ApplyReport = { applied: 0, failed: [], warnings: [], keyCount: 0, durationMs: 0 };
+  const names = await ctx.ppro.TransitionFactory.getVideoTransitionMatchNames();
+  const patterns = animation.native?.patterns ?? [];
+  let matchName: string | undefined;
+  for (const re of patterns) {
+    matchName = names.find((n) => re.test(n));
+    if (matchName) break;
+  }
+  if (!matchName) {
+    throw new UserFacingError(
+      `Transition « ${animation.name} » introuvable dans votre version de Premiere.`,
+      `Transitions disponibles : ${names.slice(0, 12).join(", ")}${names.length > 12 ? "…" : ""}`,
+    );
+  }
+  const seconds = Math.max(0.04, Number(params.duration) || 0.5);
+  const placement = String(params.placement ?? "between");
+
+  // Clips triés par piste puis par début, pour repérer les coupes entre clips sélectionnés.
+  const info: { item: VideoClipTrackItem; name: string; track: number; start: number; end: number }[] = [];
+  for (const item of ctx.clips) {
+    info.push({
+      item,
+      name: (await item.getName()) || "Clip",
+      track: await item.getTrackIndex(),
+      start: (await item.getStartTime()).seconds,
+      end: (await item.getEndTime()).seconds,
+    });
+  }
+  info.sort((a, b) => a.track - b.track || a.start - b.start);
+  const frame = 1 / ctx.fps;
+  const targets: TransitionTarget[] = [];
+  if (placement === "between") {
+    for (let i = 0; i < info.length - 1; i++) {
+      const a = info[i];
+      const b = info[i + 1];
+      if (a.track === b.track && Math.abs(b.start - a.end) <= frame * 1.5) targets.push({ name: `${a.name} → ${b.name}`, item: a.item, atStart: false });
+    }
+    if (!targets.length) {
+      throw new UserFacingError(
+        "Aucune coupe entre les clips sélectionnés.",
+        "Sélectionnez au moins deux clips qui se suivent sur la même piste, ou choisissez « Au début / À la fin de chaque clip ».",
+      );
+    }
+  } else {
+    for (const c of info) {
+      if (placement === "start" || placement === "both") targets.push({ name: c.name, item: c.item, atStart: true });
+      if (placement === "end" || placement === "both") targets.push({ name: c.name, item: c.item, atStart: false });
+    }
+  }
+
+  // Transitions et options créées AVANT la transaction (une instance par coupe).
+  const prepared: (TransitionTarget & { transition: VideoTransition; options: AddTransitionOptions })[] = [];
+  for (const t of targets) {
+    try {
+      const transition = await Promise.resolve(ctx.ppro.TransitionFactory.createVideoTransition(matchName));
+      const options = ctx.ppro.AddTransitionOptions();
+      options.setApplyToStart(t.atStart);
+      options.setDuration(ctx.ppro.TickTime.createWithSeconds(seconds));
+      prepared.push({ ...t, transition, options });
+    } catch (e) {
+      report.failed.push({ name: t.name, error: errorMessage(e) });
+    }
+  }
+  const failures = runStep(ctx.ppro, ctx.project, `MotionCraft · ${animation.name}`, prepared, (t) => [
+    { op: "transition", item: t.item, transition: t.transition, options: t.options },
+  ]);
+  for (const [t, error] of failures) report.failed.push({ name: t.name, error });
+  report.applied = prepared.length - failures.size;
+  report.warnings.push(`Transition Premiere utilisée : ${matchName} (${seconds.toFixed(2)} s).`);
+  report.durationMs = Date.now() - t0;
+  return report;
 }
 
 async function safeClipName(c: VideoClipTrackItem) {
@@ -759,6 +992,21 @@ export async function inspectSelection(settings: Settings): Promise<string> {
     }
   }
   if (ctx.clips.length > 5) lines.push(`… ${ctx.clips.length - 5} autre(s) clip(s) non détaillé(s).`);
+  // Ce que ce Premiere expose réellement (pour vérifier les correspondances de noms).
+  lines.push("");
+  const fx = await resolveEffects(ctx.ppro);
+  lines.push(`Effets MotionCraft → ${EFFECTS.map((e) => `${e.label} : ${fx[e.id] ?? "INTROUVABLE"}`).join(" · ")}`);
+  try {
+    const tr = await ctx.ppro.TransitionFactory.getVideoTransitionMatchNames();
+    lines.push(`Transitions vidéo disponibles (${tr.length}) : ${tr.join(", ")}`);
+  } catch (e) {
+    lines.push(`Transitions : illisibles (${errorMessage(e)})`);
+  }
+  try {
+    lines.push(`Marqueurs de séquence : ${(await readSequenceMarkers(ctx)).length}`);
+  } catch {
+    /* ignore */
+  }
   return lines.join("\n");
 }
 

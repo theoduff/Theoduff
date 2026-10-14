@@ -20,9 +20,16 @@ export type TrackKey =
   /** Rotation additionnelle en degrés. */
   | "rotation"
   /** Flou gaussien absolu (en pixels, pour une séquence 1080p). */
-  | "blur";
+  | "blur"
+  /** Recadrage (effet natif « Recadrage »), en % de l'image : gauche, droite, haut, bas. */
+  | "cropL"
+  | "cropR"
+  | "cropT"
+  | "cropB"
+  /** Luminosité additionnelle (effet natif « Luminosité et contraste »), 0 = neutre. */
+  | "bright";
 
-export const TRACK_KEYS: readonly TrackKey[] = ["scale", "opacity", "x", "y", "rotation", "blur"];
+export const TRACK_KEYS: readonly TrackKey[] = ["scale", "opacity", "x", "y", "rotation", "blur", "cropL", "cropR", "cropT", "cropB", "bright"];
 
 /** Valeur de chaque propriété au repos (fin d'une entrée / début d'une sortie). */
 export const REST_VALUES: Readonly<Record<TrackKey, number>> = {
@@ -32,6 +39,11 @@ export const REST_VALUES: Readonly<Record<TrackKey, number>> = {
   y: 0,
   rotation: 0,
   blur: 0,
+  cropL: 0,
+  cropR: 0,
+  cropT: 0,
+  cropB: 0,
+  bright: 0,
 };
 
 /** Une courbe : t en secondes, depuis le début du segment (0 → duration). */
@@ -62,10 +74,16 @@ export type AnimationMode = "in" | "out" | "inOut";
  * - accent   : effet ponctuel à la tête de lecture, au début ou à la fin du clip ;
  * - span     : effet qui couvre toute la durée du clip (push-in, Ken Burns…).
  */
-export type AnimationKind = "entrance" | "accent" | "span";
+export type AnimationKind = "entrance" | "accent" | "span" | "native";
 
-/** Où placer un accent dans le clip. */
-export type AccentAnchor = "playhead" | "start" | "end";
+/** Où placer un accent dans le clip (« markers » : sur chaque marqueur de la séquence). */
+export type AccentAnchor = "playhead" | "start" | "end" | "markers";
+
+/** Transition native de Premiere (appliquée telle quelle, sans images clés). */
+export interface NativeTransition {
+  /** Motifs reconnaissant le matchName (ou le nom affiché) de la transition dans Premiere. */
+  patterns: RegExp[];
+}
 
 /* ------------------------------------------------------------------ */
 /* Paramètres exposés dans l'interface                                  */
@@ -127,10 +145,14 @@ export type CategoryId =
   | "zoom"
   | "shake"
   | "camera"
-  | "transition";
+  | "transition"
+  // Montage
+  | "edit"
+  | "native"
+  | "fx";
 
 /** Grandes familles affichées dans la barre latérale. */
-export type FamilyId = "text" | "video";
+export type FamilyId = "text" | "video" | "edit";
 
 export interface AnimationDefinition {
   id: string;
@@ -148,6 +170,8 @@ export interface AnimationDefinition {
   previewText?: string;
   /** L'animation est pensée pour plusieurs calques (un mot par calque). */
   multiLayer?: boolean;
+  /** Transition native Premiere (kind « native ») : remplace l'écriture d'images clés. */
+  native?: NativeTransition;
   /** Propriétés Premiere touchées (affiché dans l'interface, et utile au moteur). */
   uses: TrackKey[];
   params: ParamSpec[];

@@ -169,3 +169,19 @@ describe("zones de nettoyage", () => {
     expect(buildClipPlan(simpleMotion, "inOut", s).clearRanges).toEqual([[0, 100]]);
   });
 });
+
+describe("accents multiples (marqueurs)", () => {
+  const punch: Motion = { delay: 0, duration: 0.4, tracks: { scale: (t) => 1 + 0.2 * Math.sin((Math.PI * t) / 0.4) } };
+  it("un effet par marqueur, au repos entre deux", () => {
+    const tl = placeMotion(punch, { type: "accent", at: [1, 2.5] }, 5, 1 / 25);
+    expect(tl.regions).toHaveLength(2);
+    expect(tl.valueAt("scale", 1.2)).toBeGreaterThan(1.1);
+    expect(tl.valueAt("scale", 1.8)).toBe(1);
+    expect(tl.valueAt("scale", 2.7)).toBeGreaterThan(1.1);
+  });
+  it("ignore un marqueur trop proche du précédent, avec avertissement", () => {
+    const tl = placeMotion(punch, { type: "accent", at: [1, 1.1, 3] }, 5, 1 / 25);
+    expect(tl.regions).toHaveLength(2);
+    expect(tl.placement.warnings.join(" ")).toContain("ignoré");
+  });
+});

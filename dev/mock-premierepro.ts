@@ -225,8 +225,16 @@ export class VideoClipTrackItem {
   async getComponentChain() {
     return this.chain;
   }
-  createAddVideoTransitionAction() {
-    throw new Error("non simulé");
+  /** Transitions posées (simulées). */
+  transitions: { matchName: string; atStart: boolean; seconds: number }[] = [];
+  createAddVideoTransitionAction(t: { matchName: string }, o?: { applyToStart: boolean; duration: TickTime }): MockAction {
+    requireLock("createAddVideoTransitionAction");
+    return {
+      label: "transition",
+      run: () => {
+        this.transitions.push({ matchName: t.matchName, atStart: !!o?.applyToStart, seconds: o?.duration?.seconds ?? 1 });
+      },
+    };
   }
   /** Raccourcis de test. */
   component(matchName: string) {
@@ -287,6 +295,43 @@ export function makeBlurComponent() {
   ]);
 }
 
+export function makeCropComponent() {
+  return new MockComponent("AE.ADBE AECrop", "Recadrage", [
+    new MockParam("Gauche", 0),
+    new MockParam("Haut", 0),
+    new MockParam("Droite", 0),
+    new MockParam("Bas", 0),
+    new MockParam("Zoom", false),
+    new MockParam("Contour progressif", 0),
+  ]);
+}
+
+export function makeBrightnessComponent() {
+  return new MockComponent("AE.ADBE Brightness & Contrast 2", "Luminosité et contraste", [new MockParam("Luminosité", 0), new MockParam("Contraste", 0)]);
+}
+
+const FILTERS: [string, string, () => MockComponent][] = [
+  ["AE.ADBE Gaussian Blur 2", "Flou gaussien", makeBlurComponent],
+  ["AE.ADBE AECrop", "Recadrage", makeCropComponent],
+  ["AE.ADBE Brightness & Contrast 2", "Luminosité et contraste", makeBrightnessComponent],
+  ["PR.ADBE Gamma Correction", "Correction gamma", () => new MockComponent("PR.ADBE Gamma Correction", "Correction gamma", [new MockParam("Gamma", 10)])],
+];
+
+export const MOCK_TRANSITIONS = [
+  "AE.ADBE Cross Dissolve New",
+  "AE.ADBE Dip To Black",
+  "AE.ADBE Dip To White",
+  "AE.ADBE Film Dissolve",
+  "AE.ADBE Additive Dissolve",
+  "AE.ADBE Push",
+  "AE.ADBE Slide",
+  "AE.ADBE Cross Zoom",
+  "AE.ADBE Wipe",
+  "AE.ADBE Iris Round",
+  "AE.ADBE Barn Doors",
+  "AE.ADBE Split",
+];
+
 export function createMockPremiere(opts: MockOptions = {}) {
   const W = opts.width ?? 1920;
   const H = opts.height ?? 1080;
@@ -304,6 +349,8 @@ export function createMockPremiere(opts: MockOptions = {}) {
     apiCalls: 0,
     /** Abonnés à SELECTION_CHANGED. */
     listeners: [] as (() => void)[],
+    /** Marqueurs de séquence (s). */
+    markers: [] as number[],
   };
   const sequence = {
     name: "Séquence 01",
@@ -386,11 +433,44 @@ export function createMockPremiere(opts: MockOptions = {}) {
     },
     VideoFilterFactory: {
       async getMatchNames() {
-        return ["AE.ADBE Gaussian Blur 2", "PR.ADBE Gamma Correction"];
+        return FILTERS.map((f) => f[0]);
+      },
+      async getDisplayNames() {
+        return FILTERS.map((f) => f[1]);
       },
       async createComponent(name: string) {
-        if (!name.includes("Gaussian Blur")) throw new Error(`Effet inconnu : ${name}`);
-        return makeBlurComponent();
+        const f = FILTERS.find((x) => x[0] === name);
+        if (!f) throw new Error(`Effet inconnu : ${name}`);
+        return f[2]();
+      },
+    },
+    TransitionFactory: {
+      async getVideoTransitionMatchNames() {
+        return MOCK_TRANSITIONS.slice();
+      },
+      createVideoTransition(matchName: string) {
+        if (!MOCK_TRANSITIONS.includes(matchName)) throw new Error(`Transition inconnue : ${matchName}`);
+        return { matchName };
+      },
+    },
+    AddTransitionOptions() {
+      const o = {
+        applyToStart: false,
+        duration: TickTime.createWithSeconds(1),
+        setApplyToStart(v: boolean) {
+          o.applyToStart = v;
+          return o;
+        },
+        setDuration(t: TickTime) {
+          o.duration = t;
+          return o;
+        },
+      };
+      return o;
+    },
+    Markers: {
+      async getMarkers() {
+        return { getMarkers: () => state.markers.map((m) => ({ getStart: () => TickTime.createWithSeconds(m) })) };
       },
     },
   };

@@ -23,7 +23,7 @@ async function apply(
   settings: Partial<Settings> = {},
   params = {},
   mode: "in" | "out" | "inOut" = "in",
-  anchor: "playhead" | "start" | "end" = "playhead",
+  anchor: "playhead" | "start" | "end" | "markers" = "playhead",
 ) {
   const a = anim(id);
   return applyAnimation({ animation: a, params: { ...defaultParams(a), ...params }, mode, anchor, settings: { ...DEFAULT_SETTINGS, ...settings } });
@@ -342,5 +342,103 @@ describe("sobriété : le panneau inactif ne sollicite pas Premiere", () => {
     vi.advanceTimersByTime(60_000);
     expect(calls).toBeLessThanOrEqual(12);
     stop();
+  });
+});
+
+describe("V3 : montage, effets natifs, transitions", () => {
+  it("Wipe ajoute UN effet Recadrage et anime le côté droit", async () => {
+    const clip = makeTextClip("Wipe", 0, 4);
+    mock.state.selection = [clip];
+    await apply("wipe-reveal");
+    await apply("wipe-reveal");
+    const crops = clip.chain.components.filter((c) => c.matchName === "AE.ADBE AECrop");
+    expect(crops).toHaveLength(1);
+    const right = crops[0].params[2];
+    expect(right.keys[0].value).toBeCloseTo(100, 6);
+    expect(right.keys.at(-1)!.value).toBeCloseTo(0, 6);
+  });
+
+  it("Typewriter : révélation par paliers (une marche par lettre)", async () => {
+    const clip = makeTextClip("Tape", 0, 4);
+    mock.state.selection = [clip];
+    await apply("typewriter", {}, { letters: 4, left: 20, right: 80, duration: 1 });
+    const right = clip.component("AE.ADBE AECrop")!.params[2];
+    const values = [0.1, 0.35, 0.6, 0.85].map((s) => Math.round(right.valueAt(s * TPS) as number));
+    expect(values).toEqual([80, 65, 50, 35]);
+  });
+
+  it("Flash ajoute Luminosité et contraste et revient à 0", async () => {
+    const clip = makeTextClip("Plan", 0, 4);
+    mock.state.selection = [clip];
+    await apply("flash", { pivot: "clip" }, {}, "in", "start");
+    const b = clip.component("AE.ADBE Brightness & Contrast 2")!.params[0];
+    expect(Math.max(...b.keys.map((k) => k.value as number))).toBeGreaterThan(50);
+    expect(b.keys.at(-1)!.value).toBeCloseTo(0, 6);
+  });
+
+  it("Bandes animées : restent fermées jusqu'à la fin du clip", async () => {
+    const clip = makeTextClip("Plan", 0, 4);
+    mock.state.selection = [clip];
+    await apply("cinema-bars-in", {}, {}, "in", "start");
+    const top = clip.component("AE.ADBE AECrop")!.params[1];
+    expect(top.valueAt(3.5 * TPS)).toBeCloseTo(12, 4);
+  });
+
+  it("Beat Zoom sur les marqueurs : un zoom par marqueur dans le clip", async () => {
+    const a = makeTextClip("A", 0, 4);
+    const b = makeTextClip("B", 4, 8);
+    mock.state.selection = [a, b];
+    mock.state.markers = [1, 2, 5.5, 20];
+    const report = await apply("beat-zoom", { pivot: "clip" }, {}, "in", "markers");
+    expect(report.applied).toBe(2);
+    const sa = motionParam(a, 1);
+    expect(sa.valueAt(1.05 * TPS)).toBeGreaterThan(104);
+    expect(sa.valueAt(1.6 * TPS)).toBeCloseTo(100, 6);
+    expect(sa.valueAt(2.05 * TPS)).toBeGreaterThan(104);
+    expect(motionParam(b, 1).valueAt(1.55 * TPS)).toBeGreaterThan(104);
+  });
+
+  it("marqueurs : erreur claire s'il n'y en a aucun", async () => {
+    mock.state.selection = [makeTextClip("A", 0, 4)];
+    mock.state.markers = [];
+    await expect(apply("beat-zoom", {}, {}, "in", "markers")).rejects.toBeInstanceOf(UserFacingError);
+  });
+
+  it("Jump Cut Zoom : alterne plan large / serré sur des plans consécutifs", async () => {
+    const shots = [0, 1, 2, 3].map((i) => makeTextClip(`P${i}`, i * 2, i * 2 + 2));
+    mock.state.selection = shots;
+    await apply("jump-cut-zoom", { pivot: "clip" });
+    const scaleOf = (c: VideoClipTrackItem) => motionParam(c, 1).valueAt(1 * TPS) as number;
+    expect(shots.map(scaleOf).map((v) => Math.round(v))).toEqual([100, 115, 100, 115]);
+  });
+
+  it("Transition native : posée sur chaque coupe entre clips sélectionnés", async () => {
+    const shots = [0, 1, 2].map((i) => makeTextClip(`P${i}`, i * 3, i * 3 + 3));
+    mock.state.selection = shots;
+    const report = await apply("native-cross-dissolve", {}, { duration: 0.8 });
+    expect(report.applied).toBe(2);
+    expect(shots[0].transitions).toEqual([{ matchName: "AE.ADBE Cross Dissolve New", atStart: false, seconds: 0.8 }]);
+    expect(shots[1].transitions).toHaveLength(1);
+    expect(shots[2].transitions).toHaveLength(0);
+  });
+
+  it("Transition native : début et fin de chaque clip", async () => {
+    const clip = makeTextClip("Seul", 0, 3);
+    mock.state.selection = [clip];
+    await apply("native-dip-black", {}, { placement: "both" });
+    expect(clip.transitions.map((t) => t.atStart)).toEqual([true, false]);
+  });
+
+  it("Transition native : message clair sans coupe entre les clips", async () => {
+    mock.state.selection = [makeTextClip("A", 0, 2), makeTextClip("B", 5, 7)];
+    await expect(apply("native-push")).rejects.toBeInstanceOf(UserFacingError);
+  });
+
+  it("toutes les transitions natives proposées existent dans le Premiere simulé", async () => {
+    const { NATIVE_TRANSITIONS } = await import("../src/animations/montage");
+    const { MOCK_TRANSITIONS } = await import("../dev/mock-premierepro");
+    for (const t of NATIVE_TRANSITIONS) {
+      expect(MOCK_TRANSITIONS.some((n) => t.native!.patterns.some((re) => re.test(n))), t.id).toBe(true);
+    }
   });
 });

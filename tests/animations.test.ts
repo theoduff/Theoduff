@@ -49,7 +49,8 @@ describe("effets ponctuels et effets sur tout le clip", () => {
 
   it("chaque catégorie affichée existe et chaque vidéo a un sujet vidéo", () => {
     for (const a of ANIMATIONS) {
-      expect(["entrance", "accent", "span"]).toContain(a.kind);
+      expect(["entrance", "accent", "span", "native"]).toContain(a.kind);
+      if (a.kind === "native") expect(a.native?.patterns.length, a.id).toBeGreaterThan(0);
       if (["zoom", "shake", "camera", "transition"].includes(a.category)) expect(a.subject, a.id).toBe("video");
     }
   });

@@ -34,6 +34,10 @@ function setSelectionRaw(kind: string) {
     case "words":
       mock.state.selection = WORDS.map((w, i) => makeTextClip(w, 2, 6, { ...opts, track: i + 1 }));
       break;
+    case "shots":
+      mock.state.selection = Array.from({ length: 4 }, (_, i) => makeTextClip(`Plan ${i + 1}`, i * 3, i * 3 + 3, opts));
+      mock.state.markers = [1, 2, 4, 5, 7.5, 10];
+      break;
     case "thirty":
       mock.state.selection = Array.from({ length: 30 }, (_, i) => makeTextClip(`Texte ${i + 1}`, i * 0.5, i * 0.5 + 3, opts));
       break;

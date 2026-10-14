@@ -7,6 +7,8 @@
  */
 import type { AnimationDefinition, CategoryId, FamilyId, ParamValues } from "../engine/types";
 import { TEXT_ACCENTS } from "./accents";
+import { MONTAGE, NATIVE_TRANSITIONS } from "./montage";
+import { TEXT_EXTRA, wipeReveal } from "./textExtra";
 import { blurReveal } from "./blurReveal";
 import { elasticBounce } from "./elasticBounce";
 import { slideUp } from "./slideUp";
@@ -20,8 +22,19 @@ export const ANIMATIONS: readonly AnimationDefinition[] = [
   slideUp,
   wordByWord,
   elasticBounce,
+  ...TEXT_EXTRA,
   ...TEXT_ACCENTS,
   ...VIDEO_ANIMATIONS,
+  {
+    ...wipeReveal,
+    id: "wipe-transition",
+    name: "Wipe (plan)",
+    tagline: "Le plan est dévoilé par un volet.",
+    category: "transition",
+    subject: "video",
+  },
+  ...MONTAGE,
+  ...NATIVE_TRANSITIONS,
 ];
 
 export interface Category {
@@ -42,11 +55,15 @@ export const CATEGORIES: readonly Category[] = [
   { id: "shake", label: "Secousses", family: "video" },
   { id: "camera", label: "Caméra", family: "video" },
   { id: "transition", label: "Transitions", family: "video" },
+  { id: "edit", label: "Zooms de montage", family: "edit" },
+  { id: "native", label: "Transitions Premiere", family: "edit" },
+  { id: "fx", label: "Effets", family: "edit" },
 ];
 
 export const FAMILIES: readonly { id: FamilyId; label: string }[] = [
   { id: "text", label: "Texte" },
   { id: "video", label: "Vidéo" },
+  { id: "edit", label: "Montage" },
 ];
 
 export const familyOf = (def: AnimationDefinition): FamilyId =>

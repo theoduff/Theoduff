@@ -52,6 +52,8 @@ export interface ClipPlan {
   rotation?: ParamKey<number>[];
   blur?: ParamKey<number>[];
   position?: ParamKey<Point>[];
+  /** Effets natifs supplémentaires (recadrage en %, luminosité). */
+  effects?: Partial<Record<EffectTrack, ParamKey<number>[]>>;
   /** Plages animées (en images). */
   ranges: [number, number][];
   /**
@@ -66,6 +68,10 @@ export interface ClipPlan {
 
 export type Precision = "optimized" | "every-frame";
 
+/** Propriétés portées par des effets natifs ajoutés au clip (hors Mouvement / Opacité / Flou). */
+export type EffectTrack = "cropL" | "cropR" | "cropT" | "cropB" | "bright";
+export const EFFECT_TRACKS: readonly EffectTrack[] = ["cropL", "cropR", "cropT", "cropB", "bright"];
+
 /** Tolérances de simplification, dans l'unité de chaque propriété relative. */
 const TOLERANCE: Record<TrackKey, number> = {
   scale: 0.0015, // 0,15 % d'échelle
@@ -74,6 +80,11 @@ const TOLERANCE: Record<TrackKey, number> = {
   y: 0.2,
   rotation: 0.05, // 0,05°
   blur: 0.15, // 0,15 px de flou
+  cropL: 0.1, // 0,1 % de recadrage
+  cropR: 0.1,
+  cropT: 0.1,
+  cropB: 0.1,
+  bright: 0.3,
 };
 
 /** Échelle de référence : les distances sont pensées pour un petit côté de 1080 px. */
@@ -109,8 +120,7 @@ export function buildClipPlan(
   const mode = placement.type === "entrance" ? placement.mode : null;
   if (placement.type === "span") plan.clearRanges.push([0, lastFrame]);
   if (placement.type === "accent") {
-    const [a, b] = plan.ranges[0] ?? [0, 0];
-    plan.clearRanges.push([a, motion.holdEnd ? lastFrame : b]);
+    plan.ranges.forEach(([a, b], i) => plan.clearRanges.push([a, motion.holdEnd && i === plan.ranges.length - 1 ? lastFrame : b]));
   }
   if (mode === "inOut") plan.clearRanges.push([0, lastFrame]);
   if (mode === "in") plan.clearRanges.push([0, Math.max(midFrame, plan.ranges[0]?.[1] ?? 0)]);
@@ -131,6 +141,15 @@ export function buildClipPlan(
   }
   if (has("blur")) {
     plan.blur = keysFor("blur").map((k) => ({ frame: k.frame, value: Math.max(0, k.value * res) }));
+  }
+
+  for (const k of EFFECT_TRACKS) {
+    if (!has(k)) continue;
+    plan.effects ??= {};
+    plan.effects[k] = keysFor(k).map((key) => ({
+      frame: key.frame,
+      value: k === "bright" ? key.value : Math.min(100, Math.max(0, key.value)),
+    }));
   }
 
   // Position : décalages x/y + compensation du pivot pendant les zooms.
@@ -163,7 +182,8 @@ export function buildClipPlan(
     (plan.opacity?.length ?? 0) +
     (plan.rotation?.length ?? 0) +
     (plan.blur?.length ?? 0) +
-    (plan.position?.length ?? 0);
+    (plan.position?.length ?? 0) +
+    Object.values(plan.effects ?? {}).reduce((n, keys) => n + (keys?.length ?? 0), 0);
   return plan;
 }
 

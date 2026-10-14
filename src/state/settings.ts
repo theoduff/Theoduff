@@ -21,7 +21,7 @@ export interface Settings {
   /** Sens des animations d'apparition (entrée, sortie, les deux). */
   mode: "in" | "out" | "inOut";
   /** Placement des effets ponctuels. */
-  anchor: "playhead" | "start" | "end";
+  anchor: "playhead" | "start" | "end" | "markers";
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -50,6 +50,6 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (typeof r.previewText === "string") s.previewText = r.previewText.slice(0, 40);
   if (typeof r.animatedPreviews === "boolean") s.animatedPreviews = r.animatedPreviews;
   if (r.mode === "in" || r.mode === "out" || r.mode === "inOut") s.mode = r.mode;
-  if (r.anchor === "playhead" || r.anchor === "start" || r.anchor === "end") s.anchor = r.anchor;
+  if (r.anchor === "playhead" || r.anchor === "start" || r.anchor === "end" || r.anchor === "markers") s.anchor = r.anchor;
   return s;
 }

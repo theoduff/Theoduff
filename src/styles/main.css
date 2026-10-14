@@ -2160,7 +2160,8 @@ button {
   background-color: var(--accent-hover);
 }
 
-.ab-actions.n3 .ab-btn.primary:first-child {
+.ab-actions.n3 .ab-btn.primary:first-child,
+.ab-actions.n4 .ab-btn.primary:first-child {
   flex: 2 1 0;
 }
 
@@ -2377,3 +2378,38 @@ button {
 [data-size="xs"] .rail .rail-label {
   width: 54px;
 }
+
+/* V3 — recadrage et flash dans les aperçus */
+.pv-crop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pv-crop-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pv-flash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ffffff;
+  opacity: 0;
+}
+
+.stage.cat-edit { background-color: #0f2620; }
+.stage.cat-native { background-color: #0f1a2b; }
+.stage.cat-fx { background-color: #2a220c; }

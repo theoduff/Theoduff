@@ -4,9 +4,10 @@ Plugin d'animations de textes pour **Adobe Premiere Pro**, en UXP, l'architectur
 
 Le principe : sélectionner un ou plusieurs textes dans la timeline, choisir une animation (avec aperçu animé), la régler, cliquer sur **Appliquer**. Le plugin écrit alors de **vraies images clés Premiere** sur les clips : Échelle, Position, Opacité, et l'effet natif Flou gaussien. Il n'y a ni rendu externe ni effet simulé. Tout reste modifiable dans le panneau *Options d'effet* et s'annule avec ⌘Z.
 
-> **Version 2.3.0 — 20 animations.**
-> - **Texte** : Smooth Pop, Blur Reveal, Slide Up, Word by Word, Elastic Bounce, Pulse, Shake.
-> - **Vidéo** (n'importe quel clip) : Zoom Punch, Heartbeat, Elastic Zoom, Push-in lent, Pull-out lent, Ken Burns, Caméra à l'épaule, Camera Shake, Impact, Glitch Jitter, Zoom Blur, Whip Pan, Spin Zoom.
+> **Version 3.0.0 — 46 outils de montage.**
+> - **Texte (14)** : Smooth Pop, Blur Reveal, Slide Up, Word by Word, Elastic Bounce, Fade, Zoom In, Spin In, Swing, Wipe, Typewriter, Flicker, Pulse, Shake.
+> - **Vidéo (14)** : Zoom Punch, Heartbeat, Elastic Zoom, Push-in lent, Pull-out lent, Ken Burns, Caméra à l'épaule, Camera Shake, Impact, Glitch Jitter, Zoom Blur, Whip Pan, Spin Zoom, Wipe (plan).
+> - **Montage (18)** : 12 transitions natives Premiere posées sur vos coupes, Jump Cut Zoom, Beat Zoom (sur les marqueurs), Flash, Flash Cut, Bandes cinéma, Bandes animées.
 >
 > Nouveautés et correctifs : voir [CHANGELOG.md](CHANGELOG.md).
 
@@ -38,7 +39,7 @@ Le principe : sélectionner un ou plusieurs textes dans la timeline, choisir une
 
 1. Récupérez la branche `claude/gallant-thompson-ck6o6o` (bouton *Code › Download ZIP* sur GitHub, ou `git clone`).
 2. Quittez Premiere Pro.
-3. Double-cliquez sur `release/MotionCraftPro-2.3.0.ccx`, **ou** dans le Terminal : `./scripts/install-mac.sh`
+3. Double-cliquez sur `release/MotionCraftPro-3.0.0.ccx`, **ou** dans le Terminal : `./scripts/install-mac.sh`
 4. Relancez Premiere Pro, puis ouvrez *Fenêtre › Extensions (ou Plugins) › MotionCraft Pro*.
 
 Procédure détaillée, mode développeur et dépannage : **[docs/INSTALLATION-MAC.md](docs/INSTALLATION-MAC.md)**.
@@ -46,7 +47,8 @@ Procédure détaillée, mode développeur et dépannage : **[docs/INSTALLATION-M
 ## Utilisation
 
 1. Dans la timeline, sélectionnez un ou plusieurs clips (textes, vidéos, photos, logos…).
-2. Pour un effet **ponctuel** (Zoom Punch, Camera Shake, Pulse…), placez la tête de lecture à l'endroit voulu.
+2. Pour un effet **ponctuel** (Zoom Punch, Camera Shake, Flash, Pulse…), placez la tête de lecture à l'endroit voulu, ou posez des **marqueurs de séquence** (touche M) sur les temps forts et utilisez « Marqueurs ».
+   Pour une **transition Premiere**, sélectionnez les clips qui se suivent sur la timeline : elle est posée sur chaque coupe.
 3. Dans MotionCraft, choisissez une famille (**Texte** / **Vidéo**) et survolez les vignettes pour voir les aperçus.
 4. Cliquez sur une vignette, puis sur un bouton de la barre du bas : **Entrée**, **Sortie**, **Entrée + sortie**, ou **Appliquer à la tête de lecture** pour les effets ponctuels. Le bouton **Appliquer** de la vignette (ou un double-clic) applique directement avec les réglages actuels. Les réglages fins sont dans le panneau de droite (onglets Réglages / Presets).
 5. Pour annuler : ⌘Z. L'opération occupe 3 à 4 étapes dans l'historique : *activation*, *images clés*, *interpolation*, et *Flou gaussien* pour Blur Reveal.

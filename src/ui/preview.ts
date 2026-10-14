@@ -186,7 +186,8 @@ export class PreviewPlayer {
     const pl = this.units[0]?.timeline.placement;
     if (def.kind === "span") return SPAN_CLIP * 0.6;
     if (def.kind === "accent") return (pl?.start ?? 0) + ((pl?.end ?? 0) - (pl?.start ?? 0)) * 0.25;
-    return this.mode === "out" ? 0.2 : this.maxEntry() + Math.min(0.3, HOLD / 2);
+    const mode = def.kind === "native" ? "in" : this.mode;
+    return mode === "out" ? 0.2 : this.maxEntry() + Math.min(0.3, HOLD / 2);
   }
 
   private maxEntry() {
@@ -196,12 +197,57 @@ export class PreviewPlayer {
     }, 0);
   }
 
+  private cropWin?: HTMLElement;
+  private cropInner?: HTMLElement;
+  private flash?: HTMLElement;
+
+  /** Recadrage (fenêtre qui masque les bords) et flash lumineux, d'après le 1er calque. */
+  private renderCropAndFlash(t: number) {
+    const tl = this.units[0]?.timeline;
+    if (!tl || !this.cropWin || !this.cropInner) return;
+    const v = (key: TrackKey) => (tl.tracks.includes(key) ? Math.max(0, Math.min(100, tl.valueAt(key, t))) : 0);
+    const L = v("cropL");
+    const R = Math.min(v("cropR"), 99.9 - L);
+    const T = v("cropT");
+    const B = Math.min(v("cropB"), 99.9 - T);
+    const w = Math.max(0.1, 100 - L - R);
+    const hgt = Math.max(0.1, 100 - T - B);
+    const win = this.cropWin.style;
+    win.left = `${L.toFixed(2)}%`;
+    win.top = `${T.toFixed(2)}%`;
+    win.width = `${w.toFixed(2)}%`;
+    win.height = `${hgt.toFixed(2)}%`;
+    const inner = this.cropInner.style;
+    inner.left = `${((-L / w) * 100).toFixed(3)}%`;
+    inner.top = `${((-T / hgt) * 100).toFixed(3)}%`;
+    inner.width = `${((100 / w) * 100).toFixed(3)}%`;
+    inner.height = `${((100 / hgt) * 100).toFixed(3)}%`;
+    if (this.flash) {
+      const b = tl.tracks.includes("bright") ? tl.valueAt("bright", t) : 0;
+      this.flash.style.opacity = Math.max(0, Math.min(0.9, b / 110)).toFixed(3);
+    }
+  }
+
   private build() {
     const def = this.def;
     if (!def) return;
     this.video = def.subject === "video";
     this.el.innerHTML = "";
     const needsGhosts = def.uses.includes("blur");
+    // Les transitions natives se prévisualisent comme une entrée du plan suivant.
+    const mode: AnimationMode = def.kind === "native" ? "in" : this.mode;
+    // Fenêtre de recadrage (effet Recadrage) + voile lumineux (Luminosité).
+    this.cropInner = h("div", { class: "pv-crop-inner" });
+    this.cropWin = h("div", { class: "pv-crop" }, this.cropInner);
+    this.flash = h("div", { class: "pv-flash" });
+    if (def.kind === "native") {
+      // Plan précédent, fixe, sous le plan qui arrive.
+      const under = h("div", { class: "pv-scene v1" }, h("div", { class: "pv-sun" }), h("div", { class: "pv-hill back" }), h("div", { class: "pv-hill front" }));
+      renderScene(under, 1, 0, 0, 0, 1);
+      this.el.appendChild(under);
+    }
+    this.el.appendChild(this.cropWin);
+    const host = this.cropInner;
 
     // Clip virtuel : même placement que dans Premiere.
     let clip: number;
@@ -223,8 +269,8 @@ export class PreviewPlayer {
       clip = entry + HOLD * 1.4;
       spec = { type: "accent", at: HOLD * 0.7 };
     } else {
-      clip = this.mode === "inOut" ? entry * 2 + HOLD : entry + HOLD;
-      spec = { type: "entrance", mode: this.mode };
+      clip = mode === "inOut" ? entry * 2 + HOLD : entry + HOLD;
+      spec = { type: "entrance", mode };
     }
     this.loopLength = clip + GAP;
 
@@ -244,8 +290,9 @@ export class PreviewPlayer {
       const ghosts: HTMLElement[] = [];
       if (needsGhosts) for (let g = 0; g < 2; g++) ghosts.push(scene());
       const main = scene();
-      for (const g of ghosts) this.el.appendChild(g);
-      this.el.appendChild(main);
+      for (const g of ghosts) host.appendChild(g);
+      host.appendChild(main);
+      host.appendChild(this.flash);
       this.el.classList.add("is-video");
       this.units = [{ main, ghosts, timeline: placeMotion(motions[0], spec, clip, 1 / 60) }];
       return;
@@ -269,12 +316,13 @@ export class PreviewPlayer {
       row.appendChild(wrap);
       return { main, ghosts, timeline: placeMotion(motions[i], spec, clip, 1 / 60) };
     });
-    this.el.appendChild(row);
+    host.appendChild(row);
   }
 
   private renderAt(t: number) {
     const k = this.pxScale;
     const inClip = t <= this.loopLength - GAP;
+    this.renderCropAndFlash(inClip ? t : 0);
     for (const u of this.units) {
       const tl = u.timeline;
       const val = (key: TrackKey, fallback: number) => (tl.tracks.includes(key) ? tl.valueAt(key, inClip ? t : 0) : fallback);
@@ -303,7 +351,7 @@ export class PreviewPlayer {
       }
       const visible = scale > 0.015 && opacity > 0.002;
       const size = `${Math.max(0.5, this.opts.fontSize * Math.max(0, scale)).toFixed(1)}px`;
-      styleText(u.main, size, x, y, visible ? opacity * (1 - blurMix) : 0);
+      styleText(u.main, size, x, y, visible ? opacity * (1 - blurMix) : 0, rot);
       for (let g = 0; g < u.ghosts.length; g++) {
         if (!blurMix || !visible) {
           if (u.ghosts[g].style.opacity !== "0") u.ghosts[g].style.opacity = "0";
@@ -318,12 +366,14 @@ export class PreviewPlayer {
   }
 }
 
-function styleText(el: HTMLElement, size: string, x: number, y: number, opacity: number) {
+function styleText(el: HTMLElement, size: string, x: number, y: number, opacity: number, rot = 0) {
   const s = el.style;
   if (s.fontSize !== size) s.fontSize = size;
   s.left = `${x.toFixed(1)}px`;
   s.top = `${y.toFixed(1)}px`;
   s.opacity = opacity.toFixed(3);
+  const tr = Math.abs(rot) > 0.01 ? `rotate(${rot.toFixed(2)}deg)` : "";
+  if (s.transform !== tr) s.transform = tr;
 }
 
 /**
