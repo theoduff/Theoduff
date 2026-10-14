@@ -47,7 +47,7 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
 {
   const page = await open("sel=one&w=1100", { width: 1500, height: 860 });
   const total = await page.locator(".card").count();
-  check(total >= 45, `${total} animations affichées`);
+  check(total >= 59, `${total} animations affichées`);
   check((await page.textContent(".pill")).includes("1 clip sélectionné"), "pastille de sélection à jour");
   check(await page.locator(".rail").isVisible(), "rail de catégories visible");
   await page.hover(".card >> nth=1");
@@ -110,7 +110,7 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
   await page.click(".rail-btn[data-filter='family:edit']");
   await page.waitForTimeout(200);
   const n = await page.locator(".card").count();
-  check(n >= 18, `${n} outils de montage`);
+  check(n >= 23, `${n} outils de montage`);
   await page.click(".card:has-text('Fondu enchaîné') .card-title");
   await page.click(".ab-btn:has-text('Poser la transition')");
   await page.waitForSelector(".toast.success", { timeout: 4000 });
@@ -120,6 +120,17 @@ const apiCalls = (page) => page.evaluate(() => window.__mock?.state.apiCalls ?? 
   await page.waitForSelector(".toast.success >> nth=0", { timeout: 4000 });
   await page.waitForTimeout(300);
   check((await page.textContent("#log")).includes("Beat Zoom"), "Beat Zoom sur les marqueurs");
+  await page.click(".rail-btn[data-filter='transition']");
+  await page.click(".card:has-text('Whip Pan') .card-title");
+  await page.click(".ab-btn:has-text('Sur les coupes')");
+  await page.waitForTimeout(600);
+  check((await page.textContent("#log")).includes("Whip Pan"), "transition MotionCraft sur les coupes");
+  await page.click(".ab-clear");
+  check((await page.textContent(".ab-clear")).includes("Confirmer"), "« Retirer les animations » demande confirmation");
+  await page.click(".ab-clear");
+  await page.waitForTimeout(600);
+  check((await page.textContent("#log")).includes("Retirer les animations"), "animations retirées");
+  await page.click(".rail-btn[data-filter='family:edit']");
   await page.hover(".card:has-text('Flash Cut')");
   await page.waitForTimeout(150);
   await page.screenshot({ path: join(out, "02b-montage.png") });

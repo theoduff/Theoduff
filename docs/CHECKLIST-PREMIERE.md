@@ -90,3 +90,12 @@ Merci de me transmettre ce tableau rempli : les ❌ et les rapports de diagnosti
 | F6 | Wipe et Typewriter sur un texte | Effet Recadrage ajouté une seule fois, volet net | |
 | F7 | Flash / Flash Cut | Effet Luminosité et contraste ajouté, éclair visible | |
 | F8 | Bandes cinéma / Bandes animées | Bandes noires en haut et en bas | |
+
+## G. V3.1
+
+| # | Test | Attendu | Résultat |
+|---|---|---|---|
+| G1 | 3 plans consécutifs, Whip Pan › « Sur les coupes » | Fin du plan 1 et début du plan 2 fouettés dans le même sens | |
+| G2 | Recette Impact Flash à la tête de lecture | Zoom + secousse + flash simultanés | |
+| G3 | « Retirer les animations » (2 clics) sur un clip animé | Plus d'images clés ; cadrage / opacité d'origine ; effets ajoutés retirés | |
+| G4 | ⌘Z après G3 | Les animations reviennent | |

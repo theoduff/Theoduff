@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 3.1.0 — transitions sur les coupes, recettes, nettoyage (59 outils)
+
+- **Sur les coupes** : les transitions MotionCraft (Zoom Blur, Whip Pan, Spin Zoom, Wipe, Intro Flash…) s'appliquent automatiquement en sortie du plan avant chaque coupe et en entrée du plan suivant, avec un mouvement continu à travers la coupe.
+- **Recettes** (combinaisons en un clic, intensité et vitesse globales) : Impact Flash, Drop, Glitch Hit, Séisme, Intro Flash.
+- **Retirer les animations** (avec confirmation) : supprime les images clés de Mouvement / Opacité en gardant la valeur de repos, et retire les effets Flou, Recadrage, Luminosité ajoutés.
+- 8 animations de plus : Glitch, Bounce In, Rotate Pop (texte) ; Smooth Zoom, Rotation Punch, Pendulum, Drift, Tremblement (vidéo).
+- 77 tests.
+
 ## 3.0.0 — outil de montage complet (46 outils)
 
 **Nouvelle famille « Montage »**

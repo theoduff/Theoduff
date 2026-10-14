@@ -9,6 +9,8 @@ import type { AnimationDefinition, CategoryId, FamilyId, ParamValues } from "../
 import { TEXT_ACCENTS } from "./accents";
 import { MONTAGE, NATIVE_TRANSITIONS } from "./montage";
 import { TEXT_EXTRA, wipeReveal } from "./textExtra";
+import { MORE_TEXT, MORE_VIDEO } from "./more";
+import { RECIPES } from "./recipes";
 import { blurReveal } from "./blurReveal";
 import { elasticBounce } from "./elasticBounce";
 import { slideUp } from "./slideUp";
@@ -23,8 +25,10 @@ export const ANIMATIONS: readonly AnimationDefinition[] = [
   wordByWord,
   elasticBounce,
   ...TEXT_EXTRA,
+  ...MORE_TEXT,
   ...TEXT_ACCENTS,
   ...VIDEO_ANIMATIONS,
+  ...MORE_VIDEO,
   {
     ...wipeReveal,
     id: "wipe-transition",
@@ -34,6 +38,7 @@ export const ANIMATIONS: readonly AnimationDefinition[] = [
     subject: "video",
   },
   ...MONTAGE,
+  ...RECIPES,
   ...NATIVE_TRANSITIONS,
 ];
 
@@ -58,6 +63,7 @@ export const CATEGORIES: readonly Category[] = [
   { id: "edit", label: "Zooms de montage", family: "edit" },
   { id: "native", label: "Transitions Premiere", family: "edit" },
   { id: "fx", label: "Effets", family: "edit" },
+  { id: "combo", label: "Recettes", family: "edit" },
 ];
 
 export const FAMILIES: readonly { id: FamilyId; label: string }[] = [

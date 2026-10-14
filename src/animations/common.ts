@@ -103,3 +103,10 @@ export function fadeCurve(duration: number, fadePct: number, ease: (p: number) =
   if (fadeDur <= 0) return undefined;
   return (t: number) => ease(clamp01(t / fadeDur));
 }
+
+/** Valeurs par défaut des paramètres d'une animation. */
+export function defaultValues(def: { params: { id: string; default: number | string | boolean }[] }): ParamValues {
+  const out: ParamValues = {};
+  for (const p of def.params) out[p.id] = p.default;
+  return out;
+}

@@ -141,3 +141,13 @@ export function getEasing(id: unknown, fallback = "quart"): Easing {
 }
 
 export const easingOptions = () => EASINGS.map((e) => ({ value: e.id, label: e.label }));
+
+/** Rebond de balle (gravité) : arrive, rebondit de moins en moins, se pose à 1. */
+export const easeOutBounce: Easing = (p) => {
+  const n1 = 7.5625;
+  const d1 = 2.75;
+  if (p < 1 / d1) return n1 * p * p;
+  if (p < 2 / d1) return n1 * (p -= 1.5 / d1) * p + 0.75;
+  if (p < 2.5 / d1) return n1 * (p -= 2.25 / d1) * p + 0.9375;
+  return n1 * (p -= 2.625 / d1) * p + 0.984375;
+};

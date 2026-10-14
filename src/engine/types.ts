@@ -149,7 +149,8 @@ export type CategoryId =
   // Montage
   | "edit"
   | "native"
-  | "fx";
+  | "fx"
+  | "combo";
 
 /** Grandes familles affichées dans la barre latérale. */
 export type FamilyId = "text" | "video" | "edit";

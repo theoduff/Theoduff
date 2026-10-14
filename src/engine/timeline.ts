@@ -7,7 +7,8 @@ import { REST_VALUES, type AnimationMode, type Motion, type TrackKey } from "./t
 
 /** Comment placer une animation dans un clip. */
 export type PlacementSpec =
-  | { type: "entrance"; mode: AnimationMode }
+  /** `flipOut` : la sortie inverse décalages et rotation, pour un mouvement continu à travers une coupe. */
+  | { type: "entrance"; mode: AnimationMode; flipOut?: boolean }
   /** `at` : début de l'effet (s depuis le début du clip) ; plusieurs valeurs = un effet par instant (marqueurs). */
   | { type: "accent"; at: number | number[] }
   | { type: "span" };
@@ -113,6 +114,8 @@ export function placeMotion(
   }
 
   const mode = placementSpec.mode;
+  const flipOut = placementSpec.flipOut === true;
+  const FLIP: TrackKey[] = ["x", "y", "rotation"];
   const placement: Placement = { timeScale, warnings };
   const regions: [number, number][] = [];
   const hasIn = mode === "in" || mode === "inOut";
@@ -131,7 +134,8 @@ export function placeMotion(
   const valueAt = (key: TrackKey, t: number): number => {
     if (hasOut && placement.outStart !== undefined && t >= placement.outStart) {
       // Sortie = entrée jouée à l'envers, ancrée sur la dernière image visible.
-      return localValue(key, Math.max(0, lastVisible - t));
+      const v = localValue(key, Math.max(0, lastVisible - t));
+      return flipOut && FLIP.includes(key) ? -v : v;
     }
     if (hasIn) return localValue(key, Math.max(0, t));
     return REST_VALUES[key];

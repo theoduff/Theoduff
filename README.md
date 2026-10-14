@@ -4,10 +4,11 @@ Plugin d'animations de textes pour **Adobe Premiere Pro**, en UXP, l'architectur
 
 Le principe : sélectionner un ou plusieurs textes dans la timeline, choisir une animation (avec aperçu animé), la régler, cliquer sur **Appliquer**. Le plugin écrit alors de **vraies images clés Premiere** sur les clips : Échelle, Position, Opacité, et l'effet natif Flou gaussien. Il n'y a ni rendu externe ni effet simulé. Tout reste modifiable dans le panneau *Options d'effet* et s'annule avec ⌘Z.
 
-> **Version 3.0.0 — 46 outils de montage.**
-> - **Texte (14)** : Smooth Pop, Blur Reveal, Slide Up, Word by Word, Elastic Bounce, Fade, Zoom In, Spin In, Swing, Wipe, Typewriter, Flicker, Pulse, Shake.
-> - **Vidéo (14)** : Zoom Punch, Heartbeat, Elastic Zoom, Push-in lent, Pull-out lent, Ken Burns, Caméra à l'épaule, Camera Shake, Impact, Glitch Jitter, Zoom Blur, Whip Pan, Spin Zoom, Wipe (plan).
-> - **Montage (18)** : 12 transitions natives Premiere posées sur vos coupes, Jump Cut Zoom, Beat Zoom (sur les marqueurs), Flash, Flash Cut, Bandes cinéma, Bandes animées.
+> **Version 3.1.0 — 59 outils.**
+> - **Texte (17)** : Smooth Pop, Blur Reveal, Slide Up, Word by Word, Elastic Bounce, Fade, Zoom In, Spin In, Swing, Wipe, Typewriter, Flicker, Glitch, Bounce In, Rotate Pop, Pulse, Shake.
+> - **Vidéo (19)** : Zoom Punch, Heartbeat, Elastic Zoom, Smooth Zoom, Rotation Punch, Push-in lent, Pull-out lent, Ken Burns, Caméra à l'épaule, Pendulum, Drift, Camera Shake, Impact, Glitch Jitter, Tremblement, Zoom Blur, Whip Pan, Spin Zoom, Wipe (plan).
+> - **Montage (23)** : 12 transitions natives Premiere, Jump Cut Zoom, Beat Zoom, Flash, Flash Cut, Bandes cinéma, Bandes animées, 5 recettes (Impact Flash, Drop, Glitch Hit, Séisme, Intro Flash).
+> - **Outils** : transitions MotionCraft « sur les coupes », effets sur les marqueurs, « Retirer les animations ».
 >
 > Nouveautés et correctifs : voir [CHANGELOG.md](CHANGELOG.md).
 
@@ -39,7 +40,7 @@ Le principe : sélectionner un ou plusieurs textes dans la timeline, choisir une
 
 1. Récupérez la branche `claude/gallant-thompson-ck6o6o` (bouton *Code › Download ZIP* sur GitHub, ou `git clone`).
 2. Quittez Premiere Pro.
-3. Double-cliquez sur `release/MotionCraftPro-3.0.0.ccx`, **ou** dans le Terminal : `./scripts/install-mac.sh`
+3. Double-cliquez sur `release/MotionCraftPro-3.1.0.ccx`, **ou** dans le Terminal : `./scripts/install-mac.sh`
 4. Relancez Premiere Pro, puis ouvrez *Fenêtre › Extensions (ou Plugins) › MotionCraft Pro*.
 
 Procédure détaillée, mode développeur et dépannage : **[docs/INSTALLATION-MAC.md](docs/INSTALLATION-MAC.md)**.

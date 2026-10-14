@@ -185,3 +185,23 @@ describe("accents multiples (marqueurs)", () => {
     expect(tl.placement.warnings.join(" ")).toContain("ignoré");
   });
 });
+
+describe("combinaison (recettes) et sortie inversée", () => {
+  it("échelles multipliées, décalages additionnés", async () => {
+    const { combineMotions } = await import("../src/engine/combine");
+    const m = combineMotions([
+      { delay: 0, duration: 1, tracks: { scale: () => 1.2, x: () => 10 } },
+      { delay: 0, duration: 0.5, tracks: { scale: () => 1.5, x: () => 5 } },
+    ]);
+    expect(m.duration).toBe(1);
+    expect(m.tracks.scale!(0.2)).toBeCloseTo(1.8, 6);
+    expect(m.tracks.x!(0.2)).toBeCloseTo(15, 6);
+  });
+
+  it("flipOut inverse x et rotation en sortie, pas l'échelle", () => {
+    const m: Motion = { delay: 0, duration: 0.5, tracks: { x: (t) => 100 * (1 - t / 0.5), scale: (t) => 2 - t / 0.5 } };
+    const tl = placeMotion(m, { type: "entrance", mode: "out", flipOut: true }, 3, 1 / 25);
+    expect(tl.valueAt("x", 3 - 1 / 25)).toBeCloseTo(-100, 6);
+    expect(tl.valueAt("scale", 3 - 1 / 25)).toBeCloseTo(2, 6);
+  });
+});

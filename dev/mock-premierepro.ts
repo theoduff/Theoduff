@@ -115,6 +115,15 @@ export class MockParam {
       },
     };
   }
+  createSetValueAction(kf: Keyframe): MockAction {
+    requireLock("createSetValueAction");
+    return {
+      label: "setValue",
+      run: () => {
+        this.value = kf.value.value;
+      },
+    };
+  }
   createRemoveKeyframeRangeAction(a: TickTime, b: TickTime): MockAction {
     requireLock("createRemoveKeyframeRangeAction");
     return {
@@ -191,6 +200,10 @@ export class MockChain {
   }
   getComponentAtIndex(i: number) {
     return this.components[i];
+  }
+  createRemoveComponentAction(c: MockComponent): MockAction {
+    requireLock("createRemoveComponentAction");
+    return { label: "remove", run: () => (this.components = this.components.filter((x) => x !== c)) };
   }
   createAppendComponentAction(c: MockComponent): MockAction {
     requireLock("createAppendComponentAction");

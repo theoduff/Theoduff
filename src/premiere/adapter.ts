@@ -159,6 +159,11 @@ export interface ApplyRequest {
   mode: AnimationMode;
   /** Placement des accents (tête de lecture, début, fin du clip). */
   anchor?: AccentAnchor;
+  /**
+   * Transition « sur les coupes » : sortie sur le plan avant chaque coupe, entrée
+   * sur le plan après, mouvement continu (décalages et rotation inversés en sortie).
+   */
+  cuts?: boolean;
   settings: Settings;
   onProgress?: (done: number, total: number, label: string) => void;
 }
@@ -572,7 +577,10 @@ type Op =
   | { op: "removeRange"; param: ComponentParam; from: TickTime; to: TickTime }
   | { op: "addKey"; param: ComponentParam; value: number | Point; time: TickTime }
   | { op: "linear"; param: ComponentParam; time: TickTime }
-  | { op: "transition"; item: VideoClipTrackItem; transition: VideoTransition; options: AddTransitionOptions };
+  | { op: "transition"; item: VideoClipTrackItem; transition: VideoTransition; options: AddTransitionOptions }
+  | { op: "staticOff"; param: ComponentParam }
+  | { op: "setValue"; param: ComponentParam; value: number | Point }
+  | { op: "removeComponent"; chain: Chain; component: Component };
 
 /**
  * Exécute une étape d'écriture pour tous les clips en UNE transaction (un seul
@@ -611,6 +619,18 @@ function runStep<T>(
               compound.addAction(o.param.createAddKeyframeAction(kf));
               break;
             }
+            case "staticOff":
+              compound.addAction(o.param.createSetTimeVaryingAction(false));
+              break;
+            case "setValue": {
+              const v = o.value;
+              const kf = o.param.createKeyframe(typeof v === "number" ? v : new ppro.PointF(v.x, v.y));
+              compound.addAction(o.param.createSetValueAction(kf, true));
+              break;
+            }
+            case "removeComponent":
+              compound.addAction(o.chain.createRemoveComponentAction(o.component));
+              break;
             case "transition":
               compound.addAction(o.item.createAddVideoTransitionAction(o.transition, o.options));
               break;
@@ -682,6 +702,28 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
   }
   const fxNames = await resolveEffects(ctx.ppro);
 
+  // Mode « sur les coupes » : voisins immédiats sur la même piste.
+  const neighbours = new Map<VideoClipTrackItem, { prev: boolean; next: boolean }>();
+  if (req.cuts && animation.kind === "entrance") {
+    const info: { item: VideoClipTrackItem; track: number; start: number; end: number }[] = [];
+    for (const item of ordered) {
+      info.push({ item, track: await item.getTrackIndex(), start: (await item.getStartTime()).seconds, end: (await item.getEndTime()).seconds });
+    }
+    const tol = 1.5 / ctx.fps;
+    for (const a of info) {
+      neighbours.set(a.item, {
+        prev: info.some((b) => b !== a && b.track === a.track && Math.abs(b.end - a.start) <= tol),
+        next: info.some((b) => b !== a && b.track === a.track && Math.abs(a.end - b.start) <= tol),
+      });
+    }
+    if (![...neighbours.values()].some((n) => n.prev || n.next)) {
+      throw new UserFacingError(
+        "Aucune coupe entre les clips sélectionnés.",
+        "Sélectionnez au moins deux plans qui se suivent sur la même piste.",
+      );
+    }
+  }
+
   // 1. Lecture de l'état de chaque clip + calcul des images clés.
   let clips: PreparedClip[] = [];
   for (let i = 0; i < ordered.length; i++) {
@@ -691,6 +733,14 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
       const clipDuration = clip.durationFrames / ctx.fps;
       const motion = animation.build(params, { index: i, count: total, clipDuration });
       let spec: PlacementSpec = { type: "entrance", mode };
+      if (req.cuts && animation.kind === "entrance") {
+        const n = neighbours.get(ordered[i]);
+        if (!n || (!n.prev && !n.next)) {
+          report.warnings.push(`${clip.name} : pas de coupe avec un autre clip sélectionné, ignoré.`);
+          continue;
+        }
+        spec = { type: "entrance", mode: n.prev && n.next ? "inOut" : n.prev ? "in" : "out", flipOut: true };
+      }
       if (animation.kind === "span") spec = { type: "span" };
       if (animation.kind === "accent") {
         let at: number | number[] = 0;
@@ -825,6 +875,96 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
   }
   onProgress?.(total, total, "Terminé");
   report.durationMs = Date.now() - t0;
+  return report;
+}
+
+/* ------------------------------------------------------------------ */
+/* Retirer les animations                                                */
+/* ------------------------------------------------------------------ */
+
+export interface ClearReport {
+  cleared: number;
+  failed: { name: string; error: string }[];
+  removedEffects: number;
+}
+
+/** Valeur à restaurer : valeur au milieu du clip, sauf zoom/rotation constants (effets « tout le clip »). */
+async function restoreValue(param: ComponentParam, mid: TickTime, kind: "scale" | "rotation" | "other"): Promise<number | Point | undefined> {
+  try {
+    const times = param.getKeyframeListAsTickTimes();
+    const values: unknown[] = [];
+    for (const t of times.slice(0, 40)) values.push(unwrapValue(await param.getValueAtTime(t)));
+    const allNumbers = values.length > 1 && values.every((v) => typeof v === "number");
+    const constant = allNumbers && values.every((v) => Math.abs((v as number) - (values[0] as number)) < 1e-6);
+    if (constant && kind === "scale") return 100;
+    if (constant && kind === "rotation") return 0;
+    const v = unwrapValue(await param.getValueAtTime(mid));
+    if (typeof v === "number") return v;
+    if (isPointLike(v)) return { x: v.x, y: v.y };
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
+/**
+ * Supprime les animations des clips sélectionnés : images clés de Mouvement et
+ * Opacité (valeur de repos conservée) et, si demandé, effets Flou gaussien,
+ * Recadrage, Luminosité et contraste.
+ */
+export async function clearAnimations(settings: Settings, removeEffects: boolean): Promise<ClearReport> {
+  const ctx = await readContext();
+  if (!ctx.clips.length) throw new UserFacingError("Aucun clip sélectionné.", "Sélectionnez les clips à remettre à zéro.");
+  const fx = await resolveEffects(ctx.ppro);
+  const report: ClearReport = { cleared: 0, failed: [], removedEffects: 0 };
+  interface Job {
+    name: string;
+    clip: PreparedClip;
+    params: { param: ComponentParam; value: number | Point | undefined }[];
+    effects: Component[];
+  }
+  const jobs: Job[] = [];
+  for (const item of ctx.clips) {
+    try {
+      const c = await prepareClip(ctx, item, settings, fx);
+      const mid = keyframeTime(ctx, c, Math.floor(c.durationFrames / 2), settings.timeBase);
+      const list: Job["params"] = [];
+      const add = async (param: ComponentParam | undefined, kind: "scale" | "rotation" | "other") => {
+        if (param && param.isTimeVarying()) list.push({ param, value: await restoreValue(param, mid, kind) });
+      };
+      await add(c.params.position, "other");
+      await add(c.params.scale, "scale");
+      await add(c.params.scaleWidth, "scale");
+      await add(c.params.rotation, "rotation");
+      await add(c.params.opacity, "other");
+      const effects: Component[] = [];
+      if (removeEffects) {
+        for (let i = 0; i < c.components.length; i++) {
+          const n = c.matchNames[i];
+          if (EFFECTS.some((e) => fx[e.id] === n || (e.id === "blur" && (MATCH.blur as readonly string[]).includes(n)))) effects.push(c.components[i]);
+        }
+      }
+      jobs.push({ name: c.name, clip: c, params: list, effects });
+    } catch (e) {
+      report.failed.push({ name: await safeClipName(item), error: errorMessage(e) });
+    }
+  }
+  const label = "MotionCraft · Retirer les animations";
+  const f1 = runStep(ctx.ppro, ctx.project, `${label} — images clés`, jobs, (j) => j.params.map((p): Op => ({ op: "staticOff", param: p.param })));
+  const f2 = runStep(ctx.ppro, ctx.project, `${label} — valeurs`, jobs.filter((j) => !f1.has(j)), (j) =>
+    j.params.filter((p) => p.value !== undefined).map((p): Op => ({ op: "setValue", param: p.param, value: p.value! })),
+  );
+  const f3 = removeEffects
+    ? runStep(ctx.ppro, ctx.project, `${label} — effets`, jobs.filter((j) => !f1.has(j)), (j) =>
+        j.effects.map((component): Op => ({ op: "removeComponent", chain: j.clip.chain, component })),
+      )
+    : new Map<Job, string>();
+  for (const [j, error] of [...f1, ...f2, ...f3]) report.failed.push({ name: j.name, error });
+  for (const j of jobs) {
+    if (f1.has(j)) continue;
+    report.cleared++;
+    if (removeEffects && !f3.has(j)) report.removedEffects += j.effects.length;
+  }
   return report;
 }
 

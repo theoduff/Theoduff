@@ -9,7 +9,7 @@
 import { ANIMATIONS, CATEGORIES, defaultParams, FAMILIES, familyOf, getAnimation, matchesQuery, sanitizeParams } from "../animations/registry";
 import { getEasing } from "../engine/easing";
 import type { AccentAnchor, AnimationDefinition, AnimationMode, CategoryId, ChoiceParam, FamilyId, NumberParam, ParamSpec, ParamValues, TrackKey } from "../engine/types";
-import { applyAnimation, getSelectionInfo, inspectSelection, watchSelection, type SelectionInfo } from "../premiere/adapter";
+import { applyAnimation, clearAnimations, getSelectionInfo, inspectSelection, watchSelection, type SelectionInfo } from "../premiere/adapter";
 import { getUxp, UserFacingError } from "../premiere/host";
 import { exportPresets, importPresets, makePresetId, type UserPreset } from "../state/presets";
 import { DEFAULT_SETTINGS, sanitizeSettings, type Settings } from "../state/settings";
@@ -19,7 +19,7 @@ import { cx, formatNumber, h, replaceChildren } from "./dom";
 import { icon } from "./icons";
 import { PreviewPlayer, suspendPreviews } from "./preview";
 
-export const VERSION = "3.0.0";
+export const VERSION = "3.1.0";
 
 type Filter = "all" | "favorites" | `family:${FamilyId}` | CategoryId;
 type View = "library" | "inspector" | "settings";
@@ -75,6 +75,7 @@ export const CATEGORY_COLOR: Record<CategoryId, string> = {
   edit: "#34D399",
   native: "#60A5FA",
   fx: "#FBBF24",
+  combo: "#F472B6",
 };
 
 const FAMILY_ICON: Record<FamilyId, string> = { text: "word", video: "film", edit: "scissors" };
@@ -89,6 +90,7 @@ const RAIL_LABEL: Record<string, string> = {
   edit: "Zooms",
   native: "Transit. Pr",
   fx: "Effets",
+  combo: "Recettes",
   pop: "Pop",
   blur: "Flou",
   slide: "Glisser",
@@ -1039,9 +1041,22 @@ export class App {
       h("span", { class: "ab-anim" }, a.name),
       h("span", { class: "ab-sep" }, "·"),
       h("span", { class: "ab-text" }, this.s.applying ? this.s.status : `${text}${duration ? ` · ${duration}` : ""} · ${this.s.status}`),
+      h("div", { class: "spacer" }),
+      this.s.applying
+        ? null
+        : h(
+            "button",
+            {
+              class: cx("ab-clear", this.clearArmed && "armed"),
+              title: "Supprime les images clés de Mouvement / Opacité et les effets Flou, Recadrage, Luminosité des clips sélectionnés",
+              onclick: () => void this.clearSelected(),
+            },
+            icon("eraser", this.clearArmed ? C.danger : C.text3, 12),
+            h("span", null, this.clearArmed ? "Confirmer ?" : "Retirer les animations"),
+          ),
     );
 
-    const go = (opts: { mode?: AnimationMode; anchor?: AccentAnchor }) => () => void this.apply(a, opts);
+    const go = (opts: { mode?: AnimationMode; anchor?: AccentAnchor; cuts?: boolean }) => () => void this.apply(a, opts);
     const mk = (label: string, onclick: () => void, primary: boolean, extra?: { title?: string; active?: boolean; iconName?: string }) =>
       h(
         "button",
@@ -1064,6 +1079,14 @@ export class App {
           active: m.value === this.s.settings.mode,
         }),
       );
+      if (a.category === "transition" || a.category === "combo") {
+        buttons.push(
+          mk("Sur les coupes", go({ cuts: true }), false, {
+            iconName: "cut",
+            title: "Sortie sur le plan avant chaque coupe, entrée sur le plan après : transition continue entre les plans sélectionnés",
+          }),
+        );
+      }
     } else if (a.kind === "accent") {
       buttons = [
         mk("Appliquer à la tête de lecture", go({ anchor: "playhead" }), true, { iconName: "play", title: "Place l'effet à la position de la tête de lecture" }),
@@ -1084,7 +1107,42 @@ export class App {
   /* Application dans Premiere                                          */
   /* ---------------------------------------------------------------- */
 
-  private async apply(target?: AnimationDefinition, opts: { mode?: AnimationMode; anchor?: AccentAnchor } = {}) {
+  private clearArmed = false;
+  private clearTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** « Retirer les animations » : premier clic = armer, second clic (sous 4 s) = exécuter. */
+  private async clearSelected() {
+    if (this.s.applying) return;
+    if (!this.clearArmed) {
+      this.clearArmed = true;
+      this.renderActionBar();
+      if (this.clearTimer) clearTimeout(this.clearTimer);
+      this.clearTimer = setTimeout(() => {
+        this.clearArmed = false;
+        this.renderActionBar();
+      }, 4000);
+      return;
+    }
+    this.clearArmed = false;
+    if (this.clearTimer) clearTimeout(this.clearTimer);
+    this.s.applying = true;
+    this.s.status = "Nettoyage…";
+    this.renderActionBar();
+    try {
+      const r = await clearAnimations(this.s.settings, true);
+      this.s.status = `${r.cleared} clip(s) remis à zéro.`;
+      const details = [`${r.removedEffects} effet(s) retiré(s)`, ...r.failed.map((f) => `✕ ${f.name} : ${f.error}`)];
+      this.toast(r.failed.length ? "warning" : "success", `Animations retirées de ${r.cleared} clip(s)`, `Annuler : ${isMac() ? "⌘Z" : "Ctrl+Z"}`, details);
+    } catch (e) {
+      this.s.status = "Échec du nettoyage.";
+      this.toast("error", messageOf(e), e instanceof UserFacingError ? e.hint : undefined);
+    } finally {
+      this.s.applying = false;
+      this.renderActionBar();
+    }
+  }
+
+  private async apply(target?: AnimationDefinition, opts: { mode?: AnimationMode; anchor?: AccentAnchor; cuts?: boolean } = {}) {
     if (this.s.applying) return;
     const a = target ?? this.current();
     if (opts.mode && opts.mode !== this.s.settings.mode) {
@@ -1114,6 +1172,7 @@ export class App {
         params: this.paramsFor(a),
         mode: this.s.settings.mode,
         anchor: this.s.settings.anchor,
+        cuts: opts.cuts === true,
         settings: this.s.settings,
         onProgress: (done, total, label) => setBusy(total > 1 && done < total ? `${label} ${done + 1}/${total}` : `${label}…`),
       });

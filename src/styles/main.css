@@ -2413,3 +2413,33 @@ button {
 .stage.cat-edit { background-color: #0f2620; }
 .stage.cat-native { background-color: #0f1a2b; }
 .stage.cat-fx { background-color: #2a220c; }
+
+/* V3.1 — lien « Retirer les animations » */
+.ab-status .spacer {
+  flex: 1 1 auto;
+}
+
+.ab-clear {
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 10.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.ab-clear .icon {
+  margin-right: 4px;
+}
+
+.ab-clear:hover {
+  color: var(--text);
+  background-color: var(--surface-2);
+}
+
+.ab-clear.armed {
+  color: var(--danger);
+  background-color: rgba(242, 85, 90, 0.12);
+}
+
+.stage.cat-combo { background-color: #2a1020; }

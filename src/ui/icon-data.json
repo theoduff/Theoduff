@@ -23,7 +23,8 @@
   "transition": "#F5A524",
   "edit": "#34D399",
   "native": "#60A5FA",
-  "fx": "#FBBF24"
+  "fx": "#FBBF24",
+  "combo": "#F472B6"
  },
  "filled": [
   "star",
@@ -69,6 +70,9 @@
   "native": "<path d=\"M3 7h18M3 17h18\"/><path d=\"M8 3l-4 4 4 4M16 13l4 4-4 4\"/>",
   "fx": "<path d=\"m13 2-9 12h7l-1 8 9-12h-7z\"/>",
   "scissors": "<circle cx=\"6\" cy=\"6\" r=\"3\"/><circle cx=\"6\" cy=\"18\" r=\"3\"/><path d=\"M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12\"/>",
-  "marker": "<path d=\"M6 3h12v14l-6 4-6-4z\"/>"
+  "marker": "<path d=\"M6 3h12v14l-6 4-6-4z\"/>",
+  "combo": "<path d=\"M12 3v3M12 18v3M3 12h3M18 12h3\"/><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"m5.6 5.6 2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1\"/>",
+  "cut": "<path d=\"M12 3v18\"/><path d=\"m8 8-4 4 4 4M16 8l4 4-4 4\"/>",
+  "eraser": "<path d=\"m7 21-4-4 10-10 8 8-6 6z\"/><path d=\"M7 21h14M9 11l8 8\"/>"
  }
 }

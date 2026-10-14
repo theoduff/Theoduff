@@ -442,3 +442,55 @@ describe("V3 : montage, effets natifs, transitions", () => {
     }
   });
 });
+
+describe("V3.1 : coupes, recettes, nettoyage", () => {
+  it("Whip Pan sur les coupes : sortie / entrée, mouvement continu (même sens)", async () => {
+    const shots = [0, 1, 2].map((i) => makeTextClip(`P${i}`, i * 3, i * 3 + 3, { pixelPositions: true }));
+    use(createMockPremiere({ pixelPositions: true }));
+    mock.state.selection = shots;
+    const a = anim("whip-pan");
+    const report = await applyAnimation({ animation: a, params: defaultParams(a), mode: "in", cuts: true, settings: { ...DEFAULT_SETTINGS, pivot: "clip" } });
+    expect(report.applied).toBe(3);
+    const x = (c: VideoClipTrackItem, s: number) => ((motionParam(c, 0).valueAt(s * TPS) as { x: number }).x - 960);
+    // Plan 0 : sort uniquement (fin), plan 2 : entre uniquement (début).
+    expect(x(shots[0], 0.05)).toBeCloseTo(0, 3);
+    expect(x(shots[0], 3 - 2 / 25)).toBeLessThan(-200);
+    expect(x(shots[2], 0)).toBeGreaterThan(200);
+    // Continuité : A part vers la gauche (x négatif), B arrive par la droite (x positif) → même sens de déplacement.
+    expect(x(shots[1], 0)).toBeGreaterThan(200);
+    expect(x(shots[1], 3 - 2 / 25)).toBeLessThan(-200);
+  });
+
+  it("sur les coupes : erreur claire si les plans ne se suivent pas", async () => {
+    mock.state.selection = [makeTextClip("A", 0, 2), makeTextClip("B", 5, 7)];
+    const a = anim("zoom-blur-transition");
+    await expect(applyAnimation({ animation: a, params: defaultParams(a), mode: "in", cuts: true, settings: DEFAULT_SETTINGS })).rejects.toBeInstanceOf(UserFacingError);
+  });
+
+  it("Recette Impact Flash : zoom + secousse + Luminosité, tout revient au repos", async () => {
+    const clip = makeTextClip("Plan", 0, 4);
+    mock.state.selection = [clip];
+    await apply("recipe-impact-flash", { pivot: "clip" }, {}, "in", "start");
+    expect(Math.max(...motionParam(clip, 1).keys.map((k) => k.value as number))).toBeGreaterThan(110);
+    expect(motionParam(clip, 0).keys.length).toBeGreaterThan(3);
+    const b = clip.component("AE.ADBE Brightness & Contrast 2")!.params[0];
+    expect(b.keys.at(-1)!.value).toBeCloseTo(0, 6);
+    expect(motionParam(clip, 1).keys.at(-1)!.value).toBeCloseTo(100, 4);
+  });
+
+  it("Retirer les animations : plus d'images clés, valeurs de repos et effets retirés", async () => {
+    const clip = makeTextClip("Plan", 0, 4);
+    motionParam(clip, 1).value = 80;
+    mock.state.selection = [clip];
+    await apply("blur-reveal", { pivot: "clip" });
+    await apply("jump-cut-zoom", { pivot: "clip" }, { startTight: true });
+    const { clearAnimations } = await import("../src/premiere/adapter");
+    const r = await clearAnimations(DEFAULT_SETTINGS, true);
+    expect(r.cleared).toBe(1);
+    expect(motionParam(clip, 1).isTimeVarying()).toBe(false);
+    expect(motionParam(clip, 1).value).toBe(100); // zoom constant (Jump Cut) → 100 %
+    expect(opacityParam(clip).isTimeVarying()).toBe(false);
+    expect(opacityParam(clip).value).toBeCloseTo(100, 6);
+    expect(clip.component("AE.ADBE Gaussian Blur 2")).toBeUndefined();
+  });
+});
