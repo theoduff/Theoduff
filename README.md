@@ -4,7 +4,7 @@ Plugin d'animations de textes pour **Adobe Premiere Pro**, en UXP, l'architectur
 
 Le principe : sélectionner un ou plusieurs textes dans la timeline, choisir une animation (avec aperçu animé), la régler, cliquer sur **Appliquer**. Le plugin écrit alors de **vraies images clés Premiere** sur les clips : Échelle, Position, Opacité, et l'effet natif Flou gaussien. Il n'y a ni rendu externe ni effet simulé. Tout reste modifiable dans le panneau *Options d'effet* et s'annule avec ⌘Z.
 
-> **Version 2.2.0 — 20 animations.**
+> **Version 2.3.0 — 20 animations.**
 > - **Texte** : Smooth Pop, Blur Reveal, Slide Up, Word by Word, Elastic Bounce, Pulse, Shake.
 > - **Vidéo** (n'importe quel clip) : Zoom Punch, Heartbeat, Elastic Zoom, Push-in lent, Pull-out lent, Ken Burns, Caméra à l'épaule, Camera Shake, Impact, Glitch Jitter, Zoom Blur, Whip Pan, Spin Zoom.
 >
@@ -38,7 +38,7 @@ Le principe : sélectionner un ou plusieurs textes dans la timeline, choisir une
 
 1. Récupérez la branche `claude/gallant-thompson-ck6o6o` (bouton *Code › Download ZIP* sur GitHub, ou `git clone`).
 2. Quittez Premiere Pro.
-3. Double-cliquez sur `release/MotionCraftPro-2.2.0.ccx`, **ou** dans le Terminal : `./scripts/install-mac.sh`
+3. Double-cliquez sur `release/MotionCraftPro-2.3.0.ccx`, **ou** dans le Terminal : `./scripts/install-mac.sh`
 4. Relancez Premiere Pro, puis ouvrez *Fenêtre › Extensions (ou Plugins) › MotionCraft Pro*.
 
 Procédure détaillée, mode développeur et dépannage : **[docs/INSTALLATION-MAC.md](docs/INSTALLATION-MAC.md)**.

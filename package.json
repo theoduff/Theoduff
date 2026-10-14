@@ -1,6 +1,6 @@
 {
   "name": "motioncraft-pro",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "description": "MotionCraft Pro — plugin UXP d'animations de textes pour Adobe Premiere Pro",
   "license": "UNLICENSED",
@@ -25,6 +25,7 @@
     "@adobe/eslint-plugin-premierepro": "26.5.0",
     "@adobe/premierepro": "26.5.0",
     "@eslint/js": "^9.39.0",
+    "@resvg/resvg-js": "^2.6.2",
     "esbuild": "^0.25.0",
     "eslint": "^9.39.0",
     "fflate": "^0.8.2",

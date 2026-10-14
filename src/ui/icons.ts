@@ -1,9 +1,9 @@
 /**
  * Icônes (tracés inspirés de Lucide, licence ISC).
  *
- * Premiere (UXP) n'affiche pas les SVG insérés directement dans le HTML : les
- * icônes sont donc des fichiers .svg générés au build (scripts/build.mjs), un
- * par couleur, et affichés avec <img>.
+ * Premiere (UXP) n'affiche ni le SVG en ligne, ni correctement les SVG « au
+ * trait » (remplis en noir). Les icônes sont donc des PNG générés au build
+ * (scripts/icons.mjs), un par couleur, en 2×, affichés avec <img>.
  */
 import data from "./icon-data.json";
 
@@ -20,7 +20,7 @@ export function iconFile(name: string, color: string, filled = false): string {
   const c = (known ? hex : "#A7ABB4").slice(1);
   const f = filled && FILLED.has(name) ? "-f" : "";
   const n = name in data.paths ? name : "info";
-  return `icons/ui/${n}-${c}${f}.svg`;
+  return `icons/ui/${n}-${c}${f}.png`;
 }
 
 export function icon(name: IconName, color = "#A7ABB4", size = 16, filled = false): HTMLElement {

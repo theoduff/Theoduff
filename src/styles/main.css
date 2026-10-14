@@ -2342,3 +2342,38 @@ button {
 [data-size="xs"] .rail-label {
   font-size: 8.5px;
 }
+
+/* Rail : mise en page en blocs (sans flex colonne), plus fiable dans UXP. */
+.rail .rail-btn {
+  display: block;
+  width: 62px;
+  height: auto;
+  padding: 4px 0 5px;
+  text-align: center;
+}
+
+.rail .rail-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0 auto;
+}
+
+.rail .rail-label {
+  display: block;
+  width: 62px;
+  max-width: none;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+[data-size="xs"] .rail .rail-btn,
+[data-size="xs"] .rail .rail-label {
+  width: 54px;
+}

@@ -1,5 +1,10 @@
 # Journal des versions
 
+## 2.3.0 — icônes et rail corrigés dans Premiere (2e capture réelle)
+
+- Icônes remplies en noir : le moteur UXP rend mal les SVG « au trait ». Toutes les icônes (interface, menu Fenêtre, liste des plugins) sont maintenant des PNG 2× générés au build avec resvg.
+- Rail : pastilles écrasées et libellés tronqués. Mise en page en blocs, sans flex en colonne, plus robuste dans UXP.
+
 ## 2.2.0 — correctifs d'affichage dans Premiere (constatés sur capture réelle)
 
 - Icônes invisibles : Premiere n'affiche pas le SVG en ligne. Les icônes sont désormais des fichiers SVG générés au build et affichés en `<img>`.

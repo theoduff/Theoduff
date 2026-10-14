@@ -19,7 +19,7 @@ import { cx, formatNumber, h, replaceChildren } from "./dom";
 import { icon } from "./icons";
 import { PreviewPlayer, suspendPreviews } from "./preview";
 
-export const VERSION = "2.2.0";
+export const VERSION = "2.3.0";
 
 type Filter = "all" | "favorites" | `family:${FamilyId}` | CategoryId;
 type View = "library" | "inspector" | "settings";
@@ -282,7 +282,7 @@ export class App {
         h(
           "div",
           { class: "brand" },
-          h("span", { class: "logo" }, h("img", { src: "icons/plugin.svg", width: 22, height: 22, alt: "" })),
+          h("span", { class: "logo" }, h("img", { src: "icons/plugin@2x.png", width: 22, height: 22, alt: "" })),
           h("span", { class: "brand-name" }, "MotionCraft"),
           h("span", { class: "badge-pro" }, "PRO"),
         ),
@@ -433,8 +433,8 @@ export class App {
           "data-filter": f,
           onclick: () => this.setFilter(f),
         },
-        h("span", { class: "rail-dot", style: { backgroundColor: hexAlpha(color, on ? 0.3 : 0.14), borderColor: on ? color : "transparent" } }, icon(iconName, color, 17, f === "favorites" && on)),
-        h("span", { class: "rail-label" }, RAIL_LABEL[f] ?? title),
+        h("div", { class: "rail-dot", style: { backgroundColor: hexAlpha(color, on ? 0.3 : 0.14), borderColor: on ? color : "transparent" } }, icon(iconName, color, 17, f === "favorites" && on)),
+        h("div", { class: "rail-label" }, RAIL_LABEL[f] ?? title),
       );
     };
     replaceChildren(
