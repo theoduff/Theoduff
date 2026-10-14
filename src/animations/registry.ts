@@ -5,33 +5,52 @@
  * et l'ajouter à `ANIMATIONS`. L'interface (cartes, recherche, catégories,
  * panneau de réglages, aperçus) et le moteur d'application s'adaptent seuls.
  */
-import type { AnimationDefinition, CategoryId, ParamValues } from "../engine/types";
+import type { AnimationDefinition, CategoryId, FamilyId, ParamValues } from "../engine/types";
+import { TEXT_ACCENTS } from "./accents";
 import { blurReveal } from "./blurReveal";
 import { elasticBounce } from "./elasticBounce";
 import { slideUp } from "./slideUp";
 import { smoothPop } from "./smoothPop";
 import { wordByWord } from "./wordByWord";
+import { VIDEO_ANIMATIONS } from "./video";
 
-export const ANIMATIONS: readonly AnimationDefinition[] = [smoothPop, blurReveal, slideUp, wordByWord, elasticBounce];
+export const ANIMATIONS: readonly AnimationDefinition[] = [
+  smoothPop,
+  blurReveal,
+  slideUp,
+  wordByWord,
+  elasticBounce,
+  ...TEXT_ACCENTS,
+  ...VIDEO_ANIMATIONS,
+];
 
 export interface Category {
   id: CategoryId;
   label: string;
+  family: FamilyId;
 }
 
 /** Ordre d'affichage. Seules les catégories contenant au moins une animation sont montrées. */
 export const CATEGORIES: readonly Category[] = [
-  { id: "pop", label: "Pop & Zoom" },
-  { id: "blur", label: "Flou" },
-  { id: "slide", label: "Glissements" },
-  { id: "word", label: "Mot par mot" },
-  { id: "letter", label: "Lettre par lettre" },
-  { id: "bounce", label: "Rebonds" },
-  { id: "rotate", label: "Rotations" },
-  { id: "sport", label: "Sport" },
-  { id: "subtitle", label: "Sous-titres" },
-  { id: "reels", label: "Reels" },
+  { id: "pop", label: "Pop & Zoom", family: "text" },
+  { id: "blur", label: "Flou", family: "text" },
+  { id: "slide", label: "Glissements", family: "text" },
+  { id: "word", label: "Mot par mot", family: "text" },
+  { id: "bounce", label: "Rebonds", family: "text" },
+  { id: "accent", label: "Accentuations", family: "text" },
+  { id: "zoom", label: "Zooms", family: "video" },
+  { id: "shake", label: "Secousses", family: "video" },
+  { id: "camera", label: "Caméra", family: "video" },
+  { id: "transition", label: "Transitions", family: "video" },
 ];
+
+export const FAMILIES: readonly { id: FamilyId; label: string }[] = [
+  { id: "text", label: "Texte" },
+  { id: "video", label: "Vidéo" },
+];
+
+export const familyOf = (def: AnimationDefinition): FamilyId =>
+  CATEGORIES.find((c) => c.id === def.category)?.family ?? "text";
 
 export const getAnimation = (id: string | undefined) => ANIMATIONS.find((a) => a.id === id);
 

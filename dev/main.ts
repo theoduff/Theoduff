@@ -15,6 +15,11 @@ let mock: Mock = createMockPremiere();
 const WORDS = ["Un", "mot", "à", "la", "fois"];
 
 function setSelection(kind: string) {
+  setSelectionRaw(kind);
+  mock.emitSelectionChanged();
+}
+
+function setSelectionRaw(kind: string) {
   const opts = { width: mock.width, height: mock.height };
   switch (kind) {
     case "none":
@@ -51,7 +56,9 @@ function setFormat(fmt: string) {
   };
   const [width, height, fps] = sizes[fmt] ?? sizes.hd;
   const previous = mock.state.selection.length;
+  const listeners = mock.state.listeners;
   mock = createMockPremiere({ width, height, fps });
+  mock.state.listeners = listeners;
   if (previous) setSelection((document.getElementById("sel") as HTMLSelectElement).value);
 }
 
@@ -59,7 +66,10 @@ function renderLog() {
   const log = document.getElementById("log");
   if (!log) return;
   const tx = mock.state.transactions.slice(-12).reverse();
-  log.textContent = tx.length ? tx.map((t) => `${t.ok ? "✔" : "✕"} ${t.label} — ${t.actions} action(s)`).join("\n") : "Aucune transaction pour l'instant.";
+  log.textContent =
+    `Appels API : ${mock.state.apiCalls}\n` +
+    (tx.length ? tx.map((t) => `${t.ok ? "✔" : "✕"} ${t.label} — ${t.actions} action(s)`).join("\n") : "Aucune transaction pour l'instant.");
+  (window as unknown as { __mock: Mock }).__mock = mock;
 }
 
 function wire() {
@@ -68,6 +78,12 @@ function wire() {
   const width = document.getElementById("width") as HTMLInputElement | null;
   const frame = document.getElementById("frame") as HTMLElement | null;
   sel?.addEventListener("change", () => setSelection(sel.value));
+  const ph = document.getElementById("playhead") as HTMLInputElement | null;
+  ph?.addEventListener("input", () => {
+    mock.state.playhead = Number(ph.value);
+    const label = document.getElementById("playhead-label");
+    if (label) label.textContent = `${Number(ph.value).toFixed(1)} s`;
+  });
   fmt?.addEventListener("change", () => setFormat(fmt.value));
   width?.addEventListener("input", () => {
     if (frame) frame.style.width = `${width.value}px`;

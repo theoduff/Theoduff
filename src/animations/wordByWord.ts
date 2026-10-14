@@ -18,6 +18,8 @@ export const wordByWord: AnimationDefinition = {
   description:
     "Chaque texte sélectionné apparaît à son tour avec un léger pop d'échelle et d'opacité. Placez un mot (ou un groupe de mots) par calque texte, sélectionnez-les tous : MotionCraft les enchaîne dans l'ordre de la timeline.",
   category: "word",
+  kind: "entrance",
+  subject: "text",
   tags: ["mot", "word", "kinetic", "typographie", "sous-titres", "reels", "cascade", "stagger"],
   previewText: "Un mot à la fois",
   multiLayer: true,

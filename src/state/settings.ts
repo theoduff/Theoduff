@@ -16,8 +16,12 @@ export interface Settings {
   pivotY: number;
   /** Texte utilisé dans les aperçus. Vide = nom de l'animation. */
   previewText: string;
-  /** Lecture automatique des aperçus de toutes les cartes (sinon : au survol). */
-  autoplayCards: boolean;
+  /** Aperçus animés (désactivables : mode « économie » pour les machines chargées). */
+  animatedPreviews: boolean;
+  /** Sens des animations d'apparition (entrée, sortie, les deux). */
+  mode: "in" | "out" | "inOut";
+  /** Placement des effets ponctuels. */
+  anchor: "playhead" | "start" | "end";
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,7 +32,9 @@ export const DEFAULT_SETTINGS: Settings = {
   pivotX: 50,
   pivotY: 50,
   previewText: "",
-  autoplayCards: false,
+  animatedPreviews: true,
+  mode: "in",
+  anchor: "playhead",
 };
 
 export function sanitizeSettings(raw: unknown): Settings {
@@ -42,6 +48,8 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (typeof r.pivotX === "number" && Number.isFinite(r.pivotX)) s.pivotX = Math.min(100, Math.max(0, r.pivotX));
   if (typeof r.pivotY === "number" && Number.isFinite(r.pivotY)) s.pivotY = Math.min(100, Math.max(0, r.pivotY));
   if (typeof r.previewText === "string") s.previewText = r.previewText.slice(0, 40);
-  if (typeof r.autoplayCards === "boolean") s.autoplayCards = r.autoplayCards;
+  if (typeof r.animatedPreviews === "boolean") s.animatedPreviews = r.animatedPreviews;
+  if (r.mode === "in" || r.mode === "out" || r.mode === "inOut") s.mode = r.mode;
+  if (r.anchor === "playhead" || r.anchor === "start" || r.anchor === "end") s.anchor = r.anchor;
   return s;
 }

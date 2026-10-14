@@ -24,6 +24,8 @@ export const blurReveal: AnimationDefinition = {
   description:
     "Le texte émerge d'un flou prononcé jusqu'à une netteté parfaite tout en glissant légèrement. Ajoute (ou réutilise) l'effet Flou gaussien natif de Premiere Pro sur le clip.",
   category: "blur",
+  kind: "entrance",
+  subject: "text",
   tags: ["blur", "flou", "reveal", "netteté", "cinéma", "élégant", "focus"],
   previewText: "Blur Reveal",
   uses: ["blur", "opacity", "x", "y", "scale"],

@@ -12,6 +12,8 @@ export const smoothPop: AnimationDefinition = {
   description:
     "Le texte jaillit depuis une petite échelle, dépasse légèrement sa taille finale puis s'y pose en douceur. L'entrée de référence pour les titres, chiffres clés et sous-titres dynamiques.",
   category: "pop",
+  kind: "entrance",
+  subject: "text",
   tags: ["pop", "zoom", "scale", "échelle", "apparition", "titre", "reels"],
   previewText: "Smooth Pop",
   uses: ["scale", "opacity"],

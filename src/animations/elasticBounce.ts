@@ -12,6 +12,8 @@ export const elasticBounce: AnimationDefinition = {
   description:
     "Le texte apparaît propulsé par un ressort amorti. Réglez le nombre de rebonds, leur amplitude et l'axe (zoom ou chute verticale) pour passer d'un rebond subtil à un effet cartoon assumé.",
   category: "bounce",
+  kind: "entrance",
+  subject: "text",
   tags: ["elastic", "bounce", "rebond", "ressort", "spring", "fun", "reels", "sport"],
   previewText: "Bounce!",
   uses: ["scale", "y", "opacity"],

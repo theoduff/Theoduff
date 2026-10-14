@@ -43,11 +43,29 @@ export interface Motion {
   delay: number;
   /** Durée du mouvement lui-même (après `delay`). */
   duration: number;
-  /** Courbes par propriété, définies sur [0, duration]. Doivent finir au repos. */
+  /**
+   * Courbes par propriété, définies sur [0, duration].
+   * - « entrance » : doivent finir au repos ;
+   * - « accent »   : doivent partir ET finir au repos (sauf `holdEnd`) ;
+   * - « span »     : libres (elles couvrent tout le clip).
+   */
   tracks: Partial<Record<TrackKey, Curve>>;
+  /** Accent uniquement : la valeur finale est conservée jusqu'à la fin du clip. */
+  holdEnd?: boolean;
 }
 
 export type AnimationMode = "in" | "out" | "inOut";
+
+/**
+ * Nature d'une animation, qui décide de son placement dans le clip :
+ * - entrance : apparition / disparition (entrée, sortie, ou les deux) ;
+ * - accent   : effet ponctuel à la tête de lecture, au début ou à la fin du clip ;
+ * - span     : effet qui couvre toute la durée du clip (push-in, Ken Burns…).
+ */
+export type AnimationKind = "entrance" | "accent" | "span";
+
+/** Où placer un accent dans le clip. */
+export type AccentAnchor = "playhead" | "start" | "end";
 
 /* ------------------------------------------------------------------ */
 /* Paramètres exposés dans l'interface                                  */
@@ -93,19 +111,26 @@ export interface BuildContext {
   index: number;
   /** Nombre total de textes animés ensemble. */
   count: number;
+  /** Durée du clip en secondes (utilisée par les effets « span »). */
+  clipDuration: number;
 }
 
 export type CategoryId =
+  // Texte
   | "pop"
   | "blur"
   | "slide"
   | "word"
   | "bounce"
-  | "letter"
-  | "rotate"
-  | "sport"
-  | "subtitle"
-  | "reels";
+  | "accent"
+  // Vidéo
+  | "zoom"
+  | "shake"
+  | "camera"
+  | "transition";
+
+/** Grandes familles affichées dans la barre latérale. */
+export type FamilyId = "text" | "video";
 
 export interface AnimationDefinition {
   id: string;
@@ -115,6 +140,9 @@ export interface AnimationDefinition {
   /** Description complète, affichée dans le panneau de personnalisation. */
   description: string;
   category: CategoryId;
+  kind: AnimationKind;
+  /** Sujet de l'aperçu : un texte, ou une image vidéo simulée. */
+  subject: "text" | "video";
   tags: string[];
   /** Texte utilisé pour l'aperçu si l'utilisateur n'en a pas saisi. */
   previewText?: string;

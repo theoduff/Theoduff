@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.theoduff.motioncraftpro",
   "name": "MotionCraft Pro",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "index.html",
   "host": {
     "app": "premierepro",
@@ -40,15 +40,28 @@
           "width": 23,
           "height": 23,
           "path": "icons/panel-dark.svg",
-          "scale": [1, 2],
-          "theme": ["darkest", "dark", "medium"]
+          "scale": [
+            1,
+            2
+          ],
+          "theme": [
+            "darkest",
+            "dark",
+            "medium"
+          ]
         },
         {
           "width": 23,
           "height": 23,
           "path": "icons/panel-light.svg",
-          "scale": [1, 2],
-          "theme": ["lightest", "light"]
+          "scale": [
+            1,
+            2
+          ],
+          "theme": [
+            "lightest",
+            "light"
+          ]
         }
       ]
     }
@@ -58,9 +71,21 @@
       "width": 48,
       "height": 48,
       "path": "icons/plugin.svg",
-      "scale": [1, 2],
-      "theme": ["darkest", "dark", "medium", "lightest", "light", "all"],
-      "species": ["pluginList"]
+      "scale": [
+        1,
+        2
+      ],
+      "theme": [
+        "darkest",
+        "dark",
+        "medium",
+        "lightest",
+        "light",
+        "all"
+      ],
+      "species": [
+        "pluginList"
+      ]
     }
   ]
 }

@@ -1,5 +1,26 @@
 # Journal des versions
 
+## 2.0.0 — stabilité, effets vidéo, interface façon Motion Bro
+
+**Stabilité (crash de Premiere panneau ouvert, signalé en V1)**
+- Plus aucune interrogation périodique de Premiere : la sélection n'est relue que sur l'événement officiel SELECTION_CHANGED (regroupé), au retour de la souris sur le panneau et avant d'appliquer. Une vérification lente (5 s) n'est utilisée que si l'événement n'existe pas.
+- Lecture de la sélection allégée (nombre de clips + 6 premiers noms, au lieu de 4 appels par clip).
+- Aperçus : minuteur unique plafonné à 30 i/s, aucune animation sans survol, aperçu principal limité à 2 boucles, copies « flou » créées seulement si nécessaire, tout est suspendu quand le panneau est masqué. Option « Aperçus animés » pour un panneau 100 % statique.
+- Suppression du minuteur de mise en page (500 ms) de la V1.
+
+**Bibliothèque : 20 animations**
+- 13 effets vidéo (n'importe quel clip) : Zoom Punch, Heartbeat, Elastic Zoom, Push-in lent, Pull-out lent, Ken Burns, Caméra à l'épaule, Camera Shake, Impact, Glitch Jitter, Zoom Blur, Whip Pan, Spin Zoom.
+- 2 accentuations texte : Pulse, Shake.
+- Trois natures d'effets : apparition (entrée / sortie / les deux), ponctuel (à la tête de lecture, au début ou à la fin du clip), tout le clip.
+
+**Interface**
+- Barre latérale Texte / Vidéo et catégories (onglets et puces sur panneau étroit).
+- Sens Entrée / Sortie / Entrée + sortie et placement global, directement au-dessus de la grille.
+- Bouton « Appliquer » sur chaque vignette, double-clic pour appliquer.
+- Vitesses prédéfinies (Lent → Éclair), badges de nature, aperçus vidéo dédiés.
+- Word by Word sur un seul calque : avertissement explicite.
+
+
 ## 1.0.0 — première version
 
 - Plugin UXP pour Premiere Pro 25.6+ (panneau « MotionCraft Pro »).

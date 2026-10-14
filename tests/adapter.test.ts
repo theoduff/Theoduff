@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { premierepro } from "@adobe/premierepro";
 import { ANIMATIONS, defaultParams } from "../src/animations/registry";
-import { applyAnimation, getSelectionInfo, inspectSelection } from "../src/premiere/adapter";
+import { applyAnimation, getSelectionInfo, inspectSelection, watchSelection } from "../src/premiere/adapter";
 import { setPproForTests, UserFacingError } from "../src/premiere/host";
 import { DEFAULT_SETTINGS, type Settings } from "../src/state/settings";
 import { AudioClipTrackItem, createMockPremiere, makeTextClip, type MockParam, type VideoClipTrackItem } from "../dev/mock-premierepro";
@@ -18,9 +18,15 @@ const use = (m: ReturnType<typeof createMockPremiere>) => {
 const motionParam = (clip: VideoClipTrackItem, i: number) => clip.component("AE.ADBE Motion")!.params[i] as MockParam;
 const opacityParam = (clip: VideoClipTrackItem) => clip.component("AE.ADBE Opacity")!.params[0] as MockParam;
 
-async function apply(id: string, settings: Partial<Settings> = {}, params = {}, mode: "in" | "out" | "inOut" = "in") {
+async function apply(
+  id: string,
+  settings: Partial<Settings> = {},
+  params = {},
+  mode: "in" | "out" | "inOut" = "in",
+  anchor: "playhead" | "start" | "end" = "playhead",
+) {
   const a = anim(id);
-  return applyAnimation({ animation: a, params: { ...defaultParams(a), ...params }, mode, settings: { ...DEFAULT_SETTINGS, ...settings } });
+  return applyAnimation({ animation: a, params: { ...defaultParams(a), ...params }, mode, anchor, settings: { ...DEFAULT_SETTINGS, ...settings } });
 }
 
 beforeEach(() => use(createMockPremiere()));
@@ -43,7 +49,6 @@ describe("sélection", () => {
     expect(info.status).toBe("ok");
     expect(info.clips).toHaveLength(1);
     expect(info.ignored).toBe(1);
-    expect(info.fps).toBeCloseTo(25, 6);
   });
 
   it("refuse d'appliquer sans sélection, avec un message clair", async () => {
@@ -226,5 +231,116 @@ describe("entrée puis sortie appliquées séparément", () => {
     expect(op.valueAt(0)).toBe(0);
     expect(op.valueAt(2 * TPS)).toBeCloseTo(100, 6);
     expect(op.valueAt(4 * TPS - TPS / 25)).toBeCloseTo(0, 6);
+  });
+});
+
+describe("effets vidéo", () => {
+  it("Zoom Punch se place à la tête de lecture et revient au cadrage d'origine", async () => {
+    const clip = makeTextClip("Plan", 1, 6);
+    mock.state.selection = [clip];
+    mock.state.playhead = 3; // 2 s après le début du clip
+    await apply("zoom-punch", { pivot: "clip" });
+    const scale = motionParam(clip, 1);
+    expect(scale.keys[0].ticks / TPS).toBeCloseTo(2, 2);
+    expect(scale.keys[0].value).toBeCloseTo(100, 6);
+    expect(Math.max(...scale.keys.map((k) => k.value as number))).toBeCloseTo(118, 0);
+    expect(scale.keys.at(-1)!.value).toBeCloseTo(100, 6);
+    expect(scale.valueAt(1 * TPS)).toBe(100);
+  });
+
+  it("tête de lecture hors du clip : effet placé au début, avec avertissement", async () => {
+    const clip = makeTextClip("Plan", 10, 14);
+    mock.state.selection = [clip];
+    mock.state.playhead = 2;
+    const report = await apply("zoom-punch", { pivot: "clip" });
+    expect(report.warnings.join(" ")).toContain("hors du clip");
+    expect(motionParam(clip, 1).keys[0].ticks).toBe(0);
+  });
+
+  it("placement « fin du clip » : l'effet se termine sur la dernière image", async () => {
+    const clip = makeTextClip("Plan", 0, 4);
+    mock.state.selection = [clip];
+    await apply("zoom-punch", { pivot: "clip" }, {}, "in", "end");
+    const last = motionParam(clip, 1).keys.at(-1)!;
+    expect(last.ticks / TPS).toBeCloseTo(4 - 1 / 25, 3);
+  });
+
+  it("« Rester zoomé » : le zoom est conservé jusqu'à la fin du clip", async () => {
+    const clip = makeTextClip("Plan", 0, 4);
+    mock.state.selection = [clip];
+    await apply("zoom-punch", { pivot: "clip" }, { hold: true }, "in", "start");
+    expect(motionParam(clip, 1).valueAt(3.5 * TPS)).toBeCloseTo(118, 0);
+  });
+
+  it("Push-in lent couvre tout le clip, quelle que soit sa durée", async () => {
+    const short = makeTextClip("Court", 0, 2);
+    const long = makeTextClip("Long", 3, 11);
+    mock.state.selection = [short, long];
+    await apply("slow-push-in", { pivot: "clip" });
+    for (const [c, d] of [[short, 2], [long, 8]] as const) {
+      const keys = motionParam(c, 1).keys;
+      expect(keys[0].value).toBeCloseTo(100, 6);
+      expect(keys.at(-1)!.value).toBeCloseTo(112, 6);
+      expect(keys.at(-1)!.ticks / TPS).toBeCloseTo(d - 1 / 25, 3);
+    }
+  });
+
+  it("Camera Shake anime position, rotation et agrandit l'image pour cacher les bords", async () => {
+    const clip = makeTextClip("Plan", 0, 4);
+    mock.state.selection = [clip];
+    await apply("camera-shake", { pivot: "clip" }, {}, "in", "start");
+    expect(motionParam(clip, 0).keys.length).toBeGreaterThan(5);
+    expect(motionParam(clip, 4).keys.length).toBeGreaterThan(5);
+    expect(Math.max(...motionParam(clip, 1).keys.map((k) => k.value as number))).toBeGreaterThan(102);
+    expect(motionParam(clip, 1).keys.at(-1)!.value).toBeCloseTo(100, 6);
+  });
+
+  it("Spin Zoom en sortie : rotation et flou ajoutés en fin de clip", async () => {
+    const clip = makeTextClip("Plan", 0, 4);
+    mock.state.selection = [clip];
+    await apply("spin-zoom", { pivot: "clip" }, {}, "out");
+    const rot = motionParam(clip, 4);
+    expect(rot.valueAt(1 * TPS)).toBe(0);
+    expect(Math.abs(rot.keys.at(-1)!.value as number)).toBeCloseTo(180, 0);
+    expect(clip.component("AE.ADBE Gaussian Blur 2")).toBeDefined();
+  });
+
+  it("Word by Word sur un seul calque : avertit l'utilisateur", async () => {
+    mock.state.selection = [makeTextClip("Une phrase entière", 0, 3)];
+    const report = await apply("word-by-word");
+    expect(report.warnings.join(" ")).toContain("Un seul calque");
+  });
+});
+
+describe("sobriété : le panneau inactif ne sollicite pas Premiere", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("avec l'événement SELECTION_CHANGED : aucun appel tant que rien ne change", () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const stop = watchSelection(() => calls++);
+    vi.advanceTimersByTime(120_000);
+    expect(calls).toBe(0);
+    mock.emitSelectionChanged();
+    mock.emitSelectionChanged();
+    mock.emitSelectionChanged();
+    vi.advanceTimersByTime(300);
+    expect(calls).toBe(1); // regroupés
+    stop();
+    mock.emitSelectionChanged();
+    vi.advanceTimersByTime(300);
+    expect(calls).toBe(1);
+  });
+
+  it("sans événement : vérification lente (toutes les 5 s) seulement", () => {
+    vi.useFakeTimers();
+    const m = createMockPremiere();
+    delete (m.ppro as { EventManager?: unknown }).EventManager;
+    setPproForTests(m.ppro as unknown as premierepro);
+    let calls = 0;
+    const stop = watchSelection(() => calls++);
+    vi.advanceTimersByTime(60_000);
+    expect(calls).toBeLessThanOrEqual(12);
+    stop();
   });
 });

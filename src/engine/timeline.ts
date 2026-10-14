@@ -5,6 +5,13 @@
 import { clamp } from "./easing";
 import { REST_VALUES, type AnimationMode, type Motion, type TrackKey } from "./types";
 
+/** Comment placer une animation dans un clip. */
+export type PlacementSpec =
+  | { type: "entrance"; mode: AnimationMode }
+  /** `at` : début de l'effet, en secondes depuis le début du clip. */
+  | { type: "accent"; at: number }
+  | { type: "span" };
+
 export interface Placement {
   /** Facteur appliqué aux durées si le clip est trop court (1 = pas de compression). */
   timeScale: number;
@@ -12,6 +19,9 @@ export interface Placement {
   inEnd?: number;
   outStart?: number;
   outEnd?: number;
+  /** Début / fin de l'effet (accent et span). */
+  start?: number;
+  end?: number;
   warnings: string[];
 }
 
@@ -26,32 +36,44 @@ export interface Timeline {
 
 /**
  * @param clipDuration durée du clip en secondes
- * @param frameDuration durée d'une image (la sortie se termine sur la dernière image visible)
+ * @param frameDuration durée d'une image (une sortie se termine sur la dernière image visible)
  */
 export function placeMotion(
   motion: Motion,
-  mode: AnimationMode,
+  spec: PlacementSpec | AnimationMode,
   clipDuration: number,
   frameDuration: number,
 ): Timeline {
+  const placementSpec: PlacementSpec = typeof spec === "string" ? { type: "entrance", mode: spec } : spec;
   const warnings: string[] = [];
   const total = motion.delay + motion.duration;
-  // Dernière image visible du clip : c'est elle qui doit être « cachée » en fin de sortie.
+  // Dernière image visible du clip.
   const lastVisible = Math.max(0, clipDuration - frameDuration);
-  const available = mode === "inOut" ? lastVisible / 2 : lastVisible;
+  const tracks = (Object.keys(motion.tracks) as TrackKey[]).filter((k) => motion.tracks[k]);
+
+  if (placementSpec.type === "span") {
+    // L'effet couvre tout le clip : la courbe est étirée sur sa durée réelle.
+    const span = Math.max(frameDuration, lastVisible);
+    const valueAt = (key: TrackKey, t: number): number => {
+      const curve = motion.tracks[key];
+      if (!curve) return REST_VALUES[key];
+      return curve(clamp(t / span, 0, 1) * motion.duration);
+    };
+    return { tracks, valueAt, regions: [[0, span]], placement: { timeScale: span / (motion.duration || 1), start: 0, end: span, warnings } };
+  }
+
   let timeScale = 1;
+  const available =
+    placementSpec.type === "entrance" && placementSpec.mode === "inOut" ? lastVisible / 2 : lastVisible;
   if (total > available && total > 0) {
     timeScale = Math.max(0.01, available / total);
-    warnings.push(
-      `Clip trop court : l'animation a été accélérée (×${(1 / timeScale).toFixed(2)}) pour tenir dans le clip.`,
-    );
+    warnings.push(`Clip trop court : l'animation a été accélérée (×${(1 / timeScale).toFixed(2)}) pour tenir dans le clip.`);
   }
   const delay = motion.delay * timeScale;
   const duration = motion.duration * timeScale;
-  const tracks = (Object.keys(motion.tracks) as TrackKey[]).filter((k) => motion.tracks[k]);
 
-  /** Valeur de l'animation d'entrée à τ secondes après son début (délai inclus). */
-  const entryValue = (key: TrackKey, tau: number): number => {
+  /** Valeur de l'animation à τ secondes après son début (délai inclus). */
+  const localValue = (key: TrackKey, tau: number): number => {
     const curve = motion.tracks[key];
     if (!curve) return REST_VALUES[key];
     if (tau <= delay) return curve(0);
@@ -59,6 +81,20 @@ export function placeMotion(
     return curve(clamp((tau - delay) / timeScale, 0, motion.duration));
   };
 
+  if (placementSpec.type === "accent") {
+    const length = delay + duration;
+    const start = clamp(placementSpec.at, 0, Math.max(0, lastVisible - length));
+    if (placementSpec.at > start + 1e-6) warnings.push("La tête de lecture était trop près de la fin du clip : l'effet a été avancé.");
+    const end = start + length;
+    const valueAt = (key: TrackKey, t: number): number => {
+      if (t < start) return REST_VALUES[key];
+      if (t > end) return motion.holdEnd ? localValue(key, length) : REST_VALUES[key];
+      return localValue(key, t - start);
+    };
+    return { tracks, valueAt, regions: [[start, end]], placement: { timeScale, start, end, warnings } };
+  }
+
+  const mode = placementSpec.mode;
   const placement: Placement = { timeScale, warnings };
   const regions: [number, number][] = [];
   const hasIn = mode === "in" || mode === "inOut";
@@ -77,9 +113,9 @@ export function placeMotion(
   const valueAt = (key: TrackKey, t: number): number => {
     if (hasOut && placement.outStart !== undefined && t >= placement.outStart) {
       // Sortie = entrée jouée à l'envers, ancrée sur la dernière image visible.
-      return entryValue(key, Math.max(0, lastVisible - t));
+      return localValue(key, Math.max(0, lastVisible - t));
     }
-    if (hasIn) return entryValue(key, Math.max(0, t));
+    if (hasIn) return localValue(key, Math.max(0, t));
     return REST_VALUES[key];
   };
 

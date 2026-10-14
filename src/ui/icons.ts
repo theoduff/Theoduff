@@ -34,6 +34,12 @@ const PATHS: Record<string, string> = {
   slide: '<path d="M12 20V6M6 11l6-6 6 6"/><path d="M5 21h14"/>',
   word: '<path d="M4 7V5h16v2M9 19h6M12 5v14"/>',
   bounce: '<path d="M2 18c3 0 3-12 6-12s3 12 6 12 2-6 4-6 2 6 4 6"/>',
+  film: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>',
+  accent: '<path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/>',
+  zoom: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M11 8v6M8 11h6"/>',
+  shake: '<path d="M8 4 5 8l3 4-3 4 3 4M16 4l3 4-3 4 3 4-3 4"/><rect x="9.5" y="7" width="5" height="10" rx="1"/>',
+  camera: '<path d="M3 7h12v10H3z"/><path d="m15 10 6-3v10l-6-3"/>',
+  transition: '<rect x="3" y="5" width="8" height="14" rx="1.5"/><rect x="13" y="5" width="8" height="14" rx="1.5" stroke-dasharray="2 2"/><path d="m9 12h6M13 10l2 2-2 2"/>',
   all: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
 };
 

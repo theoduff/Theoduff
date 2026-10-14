@@ -4,7 +4,11 @@ Plugin d'animations de textes pour **Adobe Premiere Pro**, en UXP, l'architectur
 
 Le principe : sélectionner un ou plusieurs textes dans la timeline, choisir une animation (avec aperçu animé), la régler, cliquer sur **Appliquer**. Le plugin écrit alors de **vraies images clés Premiere** sur les clips : Échelle, Position, Opacité, et l'effet natif Flou gaussien. Il n'y a ni rendu externe ni effet simulé. Tout reste modifiable dans le panneau *Options d'effet* et s'annule avec ⌘Z.
 
-> **Version 1.0.0 — les 5 premières animations.** Smooth Pop, Blur Reveal, Slide Up, Word by Word, Elastic Bounce.
+> **Version 2.0.0 — 20 animations.**
+> - **Texte** : Smooth Pop, Blur Reveal, Slide Up, Word by Word, Elastic Bounce, Pulse, Shake.
+> - **Vidéo** (n'importe quel clip) : Zoom Punch, Heartbeat, Elastic Zoom, Push-in lent, Pull-out lent, Ken Burns, Caméra à l'épaule, Camera Shake, Impact, Glitch Jitter, Zoom Blur, Whip Pan, Spin Zoom.
+>
+> Nouveautés et correctifs : voir [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -12,9 +16,9 @@ Le principe : sélectionner un ou plusieurs textes dans la timeline, choisir une
 
 | Élément | Implémenté | Testé automatiquement (Linux) | À valider sur votre Mac dans Premiere |
 |---|:-:|:-:|:-:|
-| Moteur d'animation (courbes, easing, cuisson en images clés) | ✅ | ✅ 25 tests | — |
+| Moteur d'animation (courbes, easing, cuisson en images clés) | ✅ | ✅ 29 tests | — |
 | Les 5 animations et leurs réglages | ✅ | ✅ | ✅ rendu visuel réel |
-| Intégration Premiere (lecture de la sélection, transactions, images clés) | ✅ | ✅ 19 tests sur un **Premiere simulé** | ✅ **indispensable** |
+| Intégration Premiere (lecture de la sélection, transactions, images clés) | ✅ | ✅ 29 tests sur un **Premiere simulé** | ✅ **indispensable** |
 | Ajout automatique du Flou gaussien (Blur Reveal) | ✅ | ✅ (simulé) | ✅ |
 | Interface (bibliothèque, recherche, catégories, favoris, aperçus, réglages, presets) | ✅ | ✅ parcours complet dans Chromium | ✅ rendu dans le moteur UXP |
 | Application à plusieurs textes (30 et plus), avec cascade | ✅ | ✅ (simulé) | ✅ |
@@ -34,17 +38,18 @@ Le principe : sélectionner un ou plusieurs textes dans la timeline, choisir une
 
 1. Récupérez la branche `claude/gallant-thompson-ck6o6o` (bouton *Code › Download ZIP* sur GitHub, ou `git clone`).
 2. Quittez Premiere Pro.
-3. Double-cliquez sur `release/MotionCraftPro-1.0.0.ccx`, **ou** dans le Terminal : `./scripts/install-mac.sh`
+3. Double-cliquez sur `release/MotionCraftPro-2.0.0.ccx`, **ou** dans le Terminal : `./scripts/install-mac.sh`
 4. Relancez Premiere Pro, puis ouvrez *Fenêtre › Extensions (ou Plugins) › MotionCraft Pro*.
 
 Procédure détaillée, mode développeur et dépannage : **[docs/INSTALLATION-MAC.md](docs/INSTALLATION-MAC.md)**.
 
 ## Utilisation
 
-1. Dans la timeline, sélectionnez un ou plusieurs clips texte (ou n'importe quel clip vidéo, logo, image…).
-2. Dans MotionCraft, survolez les cartes pour voir les aperçus, puis cliquez sur une animation.
-3. Choisissez **Entrée**, **Sortie** ou **Entrée + sortie**, puis réglez les paramètres. L'aperçu se met à jour en direct.
-4. Cliquez sur **Appliquer** (ou ⌘↵).
+1. Dans la timeline, sélectionnez un ou plusieurs clips (textes, vidéos, photos, logos…).
+2. Pour un effet **ponctuel** (Zoom Punch, Camera Shake, Pulse…), placez la tête de lecture à l'endroit voulu.
+3. Dans MotionCraft, choisissez une famille (**Texte** / **Vidéo**) et survolez les vignettes pour voir les aperçus.
+4. Au-dessus de la grille, choisissez le **Sens** (Entrée, Sortie, Entrée + sortie) et le **Placement** des effets ponctuels (tête de lecture, début, fin du clip).
+5. Cliquez sur **Appliquer** directement sur la vignette (ou double-clic). Pour personnaliser, cliquez sur la vignette : panneau de réglages à droite, puis **Appliquer** (⌘↵).
 5. Pour annuler : ⌘Z. L'opération occupe 3 à 4 étapes dans l'historique : *activation*, *images clés*, *interpolation*, et *Flou gaussien* pour Blur Reveal.
 
 Raccourcis : `/` ou ⌘K pour la recherche, ⌘↵ pour appliquer, Échap pour revenir.

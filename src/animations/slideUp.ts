@@ -23,6 +23,8 @@ export const slideUp: AnimationDefinition = {
   description:
     "Le texte monte depuis le bas et se pose avec une décélération soignée. La direction est réglable pour décliner l'effet en Slide Down / Left / Right.",
   category: "slide",
+  kind: "entrance",
+  subject: "text",
   tags: ["slide", "glissement", "up", "montée", "position", "lower third", "sous-titre"],
   previewText: "Slide Up",
   uses: ["x", "y", "opacity"],

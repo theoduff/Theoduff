@@ -22,6 +22,14 @@
  src/ui/preview.ts  ◄── même Motion + même placeMotion ──► aperçu DOM (ce que l'on voit = ce qui est appliqué)
 ```
 
+## Trois natures d'animation
+
+| `kind` | Placement | Exemples | Contrainte sur les courbes |
+|---|---|---|---|
+| `entrance` | entrée, sortie (miroir) ou les deux | Smooth Pop, Zoom Blur | finissent au repos |
+| `accent` | tête de lecture, début ou fin du clip | Zoom Punch, Camera Shake, Pulse | partent et finissent au repos (sauf `holdEnd`) |
+| `span` | toute la durée du clip | Push-in lent, Ken Burns | libres ; `ctx.clipDuration` fournit la durée |
+
 ## Principes
 
 - **Une seule source de vérité.** L'aperçu et Premiere utilisent les mêmes courbes, le même placement et le même découpage entrée/sortie.

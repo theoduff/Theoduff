@@ -3,11 +3,63 @@ import { ANIMATIONS, CATEGORIES, defaultParams, matchesQuery, sanitizeParams } f
 import { orderRank } from "../src/animations/wordByWord";
 import { REST_VALUES, type TrackKey } from "../src/engine/types";
 
-const ctx = { index: 0, count: 1 };
+const ctx = { index: 0, count: 1, clipDuration: 4 };
+
+const variantsOf = (a: (typeof ANIMATIONS)[number]) => {
+  const variants = [defaultParams(a)];
+  for (const p of a.params) {
+    if (p.type === "choice") for (const o of p.options) variants.push({ ...defaultParams(a), [p.id]: o.value });
+    if (p.type === "boolean") variants.push({ ...defaultParams(a), [p.id]: !p.default });
+  }
+  return variants;
+};
+
+describe("effets ponctuels et effets sur tout le clip", () => {
+  it("accents : partent ET reviennent au repos (sauf « rester zoomé »)", () => {
+    for (const a of ANIMATIONS.filter((x) => x.kind === "accent")) {
+      for (const v of variantsOf(a)) {
+        const m = a.build(v, ctx);
+        for (const [key, curve] of Object.entries(m.tracks)) {
+          if (!curve) continue;
+          const label = `${a.id} ${key} ${JSON.stringify(v)}`;
+          expect(curve(0), label).toBeCloseTo(REST_VALUES[key as TrackKey], 4);
+          if (!m.holdEnd) expect(curve(m.duration), label).toBeCloseTo(REST_VALUES[key as TrackKey], 4);
+        }
+      }
+    }
+  });
+
+  it("effets « tout le clip » : durée = durée du clip, valeurs finies", () => {
+    for (const a of ANIMATIONS.filter((x) => x.kind === "span")) {
+      for (const v of variantsOf(a)) {
+        const m = a.build(v, { index: 0, count: 1, clipDuration: 7 });
+        expect(m.duration, a.id).toBeCloseTo(7, 6);
+        for (const curve of Object.values(m.tracks)) for (let i = 0; i <= 70; i++) expect(Number.isFinite(curve!(i / 10))).toBe(true);
+      }
+    }
+  });
+
+  it("les secousses sont déterministes (aperçu identique à Premiere)", () => {
+    const a = ANIMATIONS.find((x) => x.id === "camera-shake")!;
+    const m1 = a.build(defaultParams(a), ctx);
+    const m2 = a.build(defaultParams(a), ctx);
+    expect(m1.tracks.x!(0.23)).toBe(m2.tracks.x!(0.23));
+    expect(Math.abs(m1.tracks.x!(0.1))).toBeGreaterThan(0);
+  });
+
+  it("chaque catégorie affichée existe et chaque vidéo a un sujet vidéo", () => {
+    for (const a of ANIMATIONS) {
+      expect(["entrance", "accent", "span"]).toContain(a.kind);
+      if (["zoom", "shake", "camera", "transition"].includes(a.category)) expect(a.subject, a.id).toBe("video");
+    }
+  });
+});
 
 describe("bibliothèque d'animations", () => {
-  it("contient les 5 animations de la V1 avec des identifiants uniques", () => {
-    expect(ANIMATIONS.map((a) => a.id)).toEqual(["smooth-pop", "blur-reveal", "slide-up", "word-by-word", "elastic-bounce"]);
+  it("contient les 5 animations texte de la V1, les effets vidéo, avec des identifiants uniques", () => {
+    expect(ANIMATIONS.slice(0, 5).map((a) => a.id)).toEqual(["smooth-pop", "blur-reveal", "slide-up", "word-by-word", "elastic-bounce"]);
+    expect(ANIMATIONS.length).toBeGreaterThanOrEqual(20);
+    expect(ANIMATIONS.filter((a) => a.subject === "video").length).toBeGreaterThanOrEqual(13);
     expect(new Set(ANIMATIONS.map((a) => a.id)).size).toBe(ANIMATIONS.length);
   });
 
@@ -26,8 +78,8 @@ describe("bibliothèque d'animations", () => {
     }
   });
 
-  it("chaque courbe finit exactement au repos (aucun saut en fin d'animation)", () => {
-    for (const a of ANIMATIONS) {
+  it("entrées : chaque courbe finit exactement au repos (aucun saut en fin d'animation)", () => {
+    for (const a of ANIMATIONS.filter((x) => x.kind === "entrance")) {
       // Valeurs par défaut + quelques variantes de choix.
       const variants = [defaultParams(a)];
       for (const p of a.params) {
@@ -73,7 +125,7 @@ describe("bibliothèque d'animations", () => {
 
   it("Word by Word : cascade selon l'ordre choisi", () => {
     const a = ANIMATIONS.find((x) => x.id === "word-by-word")!;
-    const delays = [0, 1, 2, 3].map((i) => a.build(defaultParams(a), { index: i, count: 4 }).delay);
+    const delays = [0, 1, 2, 3].map((i) => a.build(defaultParams(a), { index: i, count: 4, clipDuration: 4 }).delay);
     expect(delays).toEqual([0, 0.14, 0.28, 0.42].map((d) => expect.closeTo(d, 6)));
     expect([0, 1, 2, 3].map((i) => orderRank("reverse", i, 4))).toEqual([3, 2, 1, 0]);
     expect([0, 1, 2, 3, 4].map((i) => orderRank("center", i, 5))).toEqual([2, 1, 0, 1, 2]);

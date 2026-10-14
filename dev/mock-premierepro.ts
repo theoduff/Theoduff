@@ -298,11 +298,21 @@ export function createMockPremiere(opts: MockOptions = {}) {
     transactions: [] as { label: string; actions: number; ok: boolean }[],
     /** Fait échouer la prochaine transaction dont le libellé contient ce texte. */
     failNext: "" as string,
+    /** Position de la tête de lecture (s). */
+    playhead: 0,
+    /** Nombre d'appels à l'API (pour vérifier que le panneau inactif ne sollicite pas Premiere). */
+    apiCalls: 0,
+    /** Abonnés à SELECTION_CHANGED. */
+    listeners: [] as (() => void)[],
   };
   const sequence = {
     name: "Séquence 01",
     async getSelection() {
+      state.apiCalls++;
       return { getTrackItems: async () => state.selection.slice() };
+    },
+    async getPlayerPosition() {
+      return TickTime.createWithSeconds(state.playhead);
     },
     async getTimebase() {
       return String(TPS / fps);
@@ -314,6 +324,7 @@ export function createMockPremiere(opts: MockOptions = {}) {
   const project = {
     name: "Projet démo",
     async getActiveSequence() {
+      state.apiCalls++;
       return state.hasSequence ? sequence : null;
     },
     lockedAccess(cb: () => void) {
@@ -356,7 +367,18 @@ export function createMockPremiere(opts: MockOptions = {}) {
     Keyframe,
     VideoClipTrackItem,
     AudioClipTrackItem,
-    Constants: { InterpolationMode: { BEZIER: 0, HOLD: 1, LINEAR: 2, TIME: 3, TIME_TRANSITION_END: 4, TIME_TRANSITION_START: 5 } },
+    Constants: {
+      InterpolationMode: { BEZIER: 0, HOLD: 1, LINEAR: 2, TIME: 3, TIME_TRANSITION_END: 4, TIME_TRANSITION_START: 5 },
+      SequenceEvent: { ACTIVATED: 0, CLOSED: 1, SELECTION_CHANGED: 2 },
+    },
+    EventManager: {
+      addGlobalEventListener(evt: number, cb: () => void) {
+        if (evt === 2) state.listeners.push(cb);
+      },
+      removeGlobalEventListener(_evt: number, cb: () => void) {
+        state.listeners = state.listeners.filter((l) => l !== cb);
+      },
+    },
     Project: {
       async getActiveProject() {
         return state.hasProject ? project : null;
@@ -372,5 +394,7 @@ export function createMockPremiere(opts: MockOptions = {}) {
       },
     },
   };
-  return { ppro, state, project, sequence, fps, width: W, height: H };
+  /** Simule un changement de sélection dans la timeline (déclenche l'événement). */
+  const emitSelectionChanged = () => state.listeners.forEach((l) => l());
+  return { ppro, state, project, sequence, fps, width: W, height: H, emitSelectionChanged };
 }

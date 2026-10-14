@@ -4,6 +4,15 @@
 
 Version de Premiere testée : `________`  ·  macOS : `________`
 
+## 0. Stabilité (priorité V2)
+
+| # | Test | Attendu | Résultat |
+|---|---|---|---|
+| S1 | Ouvrir le panneau et **ne rien faire pendant 15 minutes** | Premiere reste stable | |
+| S2 | Monter normalement 15 min avec le panneau ancré (sélections, lecture) | Aucun ralentissement notable, aucun crash | |
+| S3 | Survoler toutes les vignettes | Aperçus fluides, Premiere réactif | |
+| S4 | Si un crash survient malgré tout : Réglages › désactiver « Aperçus animés », recommencer S1 | Me dire si le crash disparaît | |
+
 ## A. Chargement et sélection
 
 | # | Test | Attendu | Résultat |
@@ -56,3 +65,15 @@ Version de Premiere testée : `________`  ·  macOS : `________`
 | D7 | Raccourcis `/`, ⌘↵, Échap | Recherche, application, retour | |
 
 Merci de me transmettre ce tableau rempli : les ❌ et les rapports de diagnostic permettront une correction ciblée.
+
+## E. Effets vidéo (V2)
+
+| # | Test | Attendu | Résultat |
+|---|---|---|---|
+| E1 | Zoom Punch, tête de lecture au milieu d'un clip vidéo | Coup de zoom à la tête de lecture, retour au cadrage | |
+| E2 | Camera Shake | Secousse sans bord noir visible | |
+| E3 | Push-in lent / Ken Burns sur un clip de 8 s | Mouvement sur toute la durée | |
+| E4 | Caméra à l'épaule | Flottement léger, sans bord noir | |
+| E5 | Zoom Blur en « Sortie » sur le clip A, en « Entrée » sur le clip B | Transition fluide entre les deux | |
+| E6 | Spin Zoom | Rotation + zoom + flou, sans saut final | |
+| E7 | Bouton « Appliquer » d'une vignette et double-clic | Application directe avec les réglages actuels | |

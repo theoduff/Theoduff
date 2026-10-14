@@ -4,7 +4,7 @@
  *
  * Module pur (aucune dépendance à Premiere) : il est entièrement testé sous Linux.
  */
-import { evaluateKeys, placeMotion, sampleTrack, simplifyKeys, type FrameKey } from "./timeline";
+import { evaluateKeys, placeMotion, sampleTrack, simplifyKeys, type FrameKey, type PlacementSpec } from "./timeline";
 import type { AnimationMode, Motion, TrackKey } from "./types";
 
 export interface Point {
@@ -82,13 +82,14 @@ export const resolutionFactor = (s: Pick<ClipState, "frameWidth" | "frameHeight"
 
 export function buildClipPlan(
   motion: Motion,
-  mode: AnimationMode,
+  spec: PlacementSpec | AnimationMode,
   state: ClipState,
   precision: Precision = "optimized",
 ): ClipPlan {
   const { fps } = state;
   const clipDuration = state.durationFrames / fps;
-  const timeline = placeMotion(motion, mode, clipDuration, 1 / fps);
+  const placement: PlacementSpec = typeof spec === "string" ? { type: "entrance", mode: spec } : spec;
+  const timeline = placeMotion(motion, placement, clipDuration, 1 / fps);
   const res = resolutionFactor(state);
   const lastFrame = Math.max(0, state.durationFrames - 1);
 
@@ -105,6 +106,12 @@ export function buildClipPlan(
     plan.ranges.push([first, Math.max(first, last)]);
   }
   const midFrame = Math.floor(lastFrame / 2);
+  const mode = placement.type === "entrance" ? placement.mode : null;
+  if (placement.type === "span") plan.clearRanges.push([0, lastFrame]);
+  if (placement.type === "accent") {
+    const [a, b] = plan.ranges[0] ?? [0, 0];
+    plan.clearRanges.push([a, motion.holdEnd ? lastFrame : b]);
+  }
   if (mode === "inOut") plan.clearRanges.push([0, lastFrame]);
   if (mode === "in") plan.clearRanges.push([0, Math.max(midFrame, plan.ranges[0]?.[1] ?? 0)]);
   if (mode === "out") plan.clearRanges.push([Math.min(midFrame + 1, plan.ranges[0]?.[0] ?? lastFrame), lastFrame]);

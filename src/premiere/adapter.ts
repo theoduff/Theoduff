@@ -26,7 +26,8 @@ import type {
   VideoFilterComponent,
 } from "@adobe/premierepro";
 import { buildClipPlan, clipPointToScreen, looksNormalized, type ClipPlan, type ClipState, type Point } from "../engine/plan";
-import type { AnimationDefinition, AnimationMode, ParamValues } from "../engine/types";
+import type { AccentAnchor, AnimationDefinition, AnimationMode, ParamValues } from "../engine/types";
+import type { PlacementSpec } from "../engine/timeline";
 import { normalize } from "../animations/registry";
 import type { Settings } from "../state/settings";
 import { getPpro, UserFacingError } from "./host";
@@ -80,7 +81,10 @@ export interface SelectionInfo {
 export interface ApplyRequest {
   animation: AnimationDefinition;
   params: ParamValues;
+  /** Entrée / sortie (animations « entrance »). */
   mode: AnimationMode;
+  /** Placement des accents (tête de lecture, début, fin du clip). */
+  anchor?: AccentAnchor;
   settings: Settings;
   onProgress?: (done: number, total: number, label: string) => void;
 }
@@ -159,6 +163,11 @@ async function readContext(): Promise<HostContext> {
   };
 }
 
+/**
+ * Lecture LÉGÈRE de la sélection (appelée à chaque changement de sélection) :
+ * nombre de clips et noms des premiers seulement, pour ne jamais solliciter
+ * Premiere inutilement.
+ */
 export async function getSelectionInfo(): Promise<SelectionInfo> {
   const ppro = getPpro();
   if (!ppro) return { status: "no-host", clips: [], ignored: 0 };
@@ -166,31 +175,15 @@ export async function getSelectionInfo(): Promise<SelectionInfo> {
   if (!project) return { status: "no-project", clips: [], ignored: 0 };
   const sequence = await project.getActiveSequence();
   if (!sequence) return { status: "no-sequence", clips: [], ignored: 0 };
-  const ctx = await readContext();
+  const selection = await sequence.getSelection();
+  const items = await selection.getTrackItems();
+  const videos = items.filter((i) => isVideoClip(ppro, i));
   const clips: ClipSummary[] = [];
-  for (const c of ctx.clips) {
-    clips.push({
-      name: (await c.getName()) || "Clip",
-      start: (await c.getStartTime()).seconds,
-      end: (await c.getEndTime()).seconds,
-      track: await c.getTrackIndex(),
-    });
+  for (let i = 0; i < videos.length; i++) {
+    // Seuls les 6 premiers noms sont lus (infobulle) ; les autres restent anonymes.
+    clips.push({ name: i < 6 ? (await videos[i].getName()) || "Clip" : "", start: 0, end: 0, track: 0 });
   }
-  let sequenceName: string | undefined;
-  try {
-    sequenceName = (sequence as unknown as { name?: string }).name;
-  } catch {
-    sequenceName = undefined;
-  }
-  return {
-    status: "ok",
-    sequenceName,
-    clips,
-    ignored: ctx.ignored,
-    fps: ctx.fps,
-    frameWidth: ctx.frameWidth,
-    frameHeight: ctx.frameHeight,
-  };
+  return { status: "ok", clips, ignored: items.length - videos.length };
 }
 
 /* ------------------------------------------------------------------ */
@@ -547,10 +540,24 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
     );
   }
   const { animation, params, mode, settings, onProgress } = req;
+  const anchor = req.anchor ?? "playhead";
   const report: ApplyReport = { applied: 0, failed: [], warnings: [], keyCount: 0, durationMs: 0 };
   const ordered = await sortForReading(ctx.clips);
   const total = ordered.length;
   const label = `MotionCraft · ${animation.name}`;
+  if (animation.multiLayer && total === 1) {
+    report.warnings.push(
+      "Un seul calque sélectionné : tout le texte apparaît d'un bloc. Pour un vrai mot à mot, placez un mot par calque et sélectionnez-les tous.",
+    );
+  }
+  let playhead = 0;
+  if (animation.kind === "accent" && anchor === "playhead") {
+    try {
+      playhead = (await ctx.sequence.getPlayerPosition()).seconds;
+    } catch {
+      report.warnings.push("Position de la tête de lecture illisible : effet placé au début du clip.");
+    }
+  }
 
   // 1. Lecture de l'état de chaque clip + calcul des images clés.
   let clips: PreparedClip[] = [];
@@ -558,8 +565,23 @@ export async function applyAnimation(req: ApplyRequest): Promise<ApplyReport> {
     onProgress?.(i, total, "Analyse des clips");
     try {
       const clip = await prepareClip(ctx, ordered[i], settings);
-      const motion = animation.build(params, { index: i, count: total });
-      clip.plan = buildClipPlan(motion, mode, clip.state, settings.precision);
+      const clipDuration = clip.durationFrames / ctx.fps;
+      const motion = animation.build(params, { index: i, count: total, clipDuration });
+      let spec: PlacementSpec = { type: "entrance", mode };
+      if (animation.kind === "span") spec = { type: "span" };
+      if (animation.kind === "accent") {
+        let at = 0;
+        if (anchor === "end") at = clipDuration;
+        if (anchor === "playhead") {
+          at = playhead - clip.start.seconds;
+          if (at < 0 || at > clipDuration) {
+            report.warnings.push(`${clip.name} : la tête de lecture est hors du clip, effet placé au début.`);
+            at = 0;
+          }
+        }
+        spec = { type: "accent", at };
+      }
+      clip.plan = buildClipPlan(motion, spec, clip.state, settings.precision);
       for (const w of clip.plan.warnings) report.warnings.push(`${clip.name} : ${w}`);
       clips.push(clip);
     } catch (e) {
@@ -756,17 +778,26 @@ function describe(v: unknown): string {
 /* ------------------------------------------------------------------ */
 
 /**
- * Prévient `onChange` quand la sélection de la timeline change : événement
- * officiel SELECTION_CHANGED si disponible, plus une vérification périodique
- * légère (filet de sécurité). Renvoie une fonction d'arrêt.
+ * Prévient `onChange` quand la sélection de la timeline change.
+ *
+ * V1 interrogeait Premiere toutes les 1,5 s, ce qui a pu le déstabiliser.
+ * Désormais : uniquement l'événement officiel SELECTION_CHANGED (regroupé sur
+ * 250 ms). Si l'événement est indisponible, une vérification lente (5 s) prend
+ * le relais. L'interface rafraîchit aussi quand la souris revient sur le panneau.
  */
-export function watchSelection(onChange: () => void, intervalMs = 1500): () => void {
+export function watchSelection(onChange: () => void, fallbackIntervalMs = 5000): () => void {
   const ppro = getPpro();
   let stopped = false;
+  let debounce: ReturnType<typeof setTimeout> | null = null;
   const handler = () => {
-    if (!stopped) onChange();
+    if (stopped) return;
+    if (debounce) clearTimeout(debounce);
+    debounce = setTimeout(() => {
+      debounce = null;
+      if (!stopped) onChange();
+    }, 250);
   };
-  let unlisten = () => {};
+  let unlisten: (() => void) | null = null;
   try {
     const em = ppro?.EventManager;
     const evt = ppro?.Constants?.SequenceEvent?.SELECTION_CHANGED;
@@ -775,14 +806,15 @@ export function watchSelection(onChange: () => void, intervalMs = 1500): () => v
       unlisten = () => em.removeGlobalEventListener(evt, handler);
     }
   } catch {
-    /* événements indisponibles : la vérification périodique suffit */
+    unlisten = null;
   }
-  const timer = setInterval(handler, intervalMs);
+  const timer = unlisten || !ppro ? null : setInterval(handler, fallbackIntervalMs);
   return () => {
     stopped = true;
-    clearInterval(timer);
+    if (debounce) clearTimeout(debounce);
+    if (timer) clearInterval(timer);
     try {
-      unlisten();
+      unlisten?.();
     } catch {
       /* ignore */
     }

@@ -1,9 +1,11 @@
 /**
- * Interface MotionCraft Pro : bibliothèque, recherche, catégories, favoris,
- * panneau de personnalisation, presets, réglages et application dans Premiere.
+ * Interface MotionCraft Pro (V2, inspirée du fonctionnement de Motion Bro) :
+ * barre latérale de catégories Texte / Vidéo, sens global Entrée / Sortie,
+ * placement des effets ponctuels à la tête de lecture, application en un clic
+ * depuis les vignettes, panneau de personnalisation, presets et réglages.
  */
-import { ANIMATIONS, CATEGORIES, defaultParams, getAnimation, matchesQuery, sanitizeParams } from "../animations/registry";
-import type { AnimationDefinition, AnimationMode, CategoryId, NumberParam, ParamSpec, ParamValues, TrackKey } from "../engine/types";
+import { ANIMATIONS, CATEGORIES, defaultParams, FAMILIES, familyOf, getAnimation, matchesQuery, sanitizeParams } from "../animations/registry";
+import type { AccentAnchor, AnimationDefinition, AnimationMode, CategoryId, FamilyId, NumberParam, ParamSpec, ParamValues, TrackKey } from "../engine/types";
 import { applyAnimation, getSelectionInfo, inspectSelection, watchSelection, type SelectionInfo } from "../premiere/adapter";
 import { getUxp, UserFacingError } from "../premiere/host";
 import { exportPresets, importPresets, makePresetId, type UserPreset } from "../state/presets";
@@ -12,17 +14,31 @@ import { load, save } from "../state/storage";
 import { choice, segmented, select, slider, textField, toggle } from "./controls";
 import { cx, formatNumber, h, replaceChildren } from "./dom";
 import { icon, iconSvg } from "./icons";
-import { PreviewPlayer } from "./preview";
+import { PreviewPlayer, suspendPreviews } from "./preview";
 
-export const VERSION = "1.0.0";
+export const VERSION = "2.0.0";
 
-type CategoryFilter = "all" | "favorites" | CategoryId;
+type Filter = "all" | "favorites" | `family:${FamilyId}` | CategoryId;
 type View = "library" | "inspector" | "settings";
 
 const MODE_OPTIONS: { value: AnimationMode; label: string }[] = [
   { value: "in", label: "Entrée" },
   { value: "out", label: "Sortie" },
   { value: "inOut", label: "Entrée + sortie" },
+];
+
+const ANCHOR_OPTIONS: { value: AccentAnchor; label: string }[] = [
+  { value: "playhead", label: "Tête de lecture" },
+  { value: "start", label: "Début du clip" },
+  { value: "end", label: "Fin du clip" },
+];
+
+const SPEEDS: { value: string; label: string; factor: number }[] = [
+  { value: "0.5", label: "Lent", factor: 0.5 },
+  { value: "0.75", label: "Posé", factor: 0.75 },
+  { value: "1", label: "Normal", factor: 1 },
+  { value: "1.5", label: "Rapide", factor: 1.5 },
+  { value: "2", label: "Éclair", factor: 2 },
 ];
 
 const PROPERTY_LABEL: Record<TrackKey, string> = {
@@ -40,6 +56,8 @@ const GROUP_LABEL: Record<NonNullable<ParamSpec["group"]>, string> = {
   style: "Style",
 };
 
+const FAMILY_ICON: Record<FamilyId, string> = { text: "word", video: "film" };
+
 const C = {
   text: "#EDEEF0",
   text2: "#A7ABB4",
@@ -53,16 +71,15 @@ const C = {
 
 interface State {
   query: string;
-  category: CategoryFilter;
+  filter: Filter;
   selectedId: string;
   favorites: string[];
   paramsById: Record<string, ParamValues>;
-  modeById: Record<string, AnimationMode>;
   presets: UserPreset[];
   settings: Settings;
   selection: SelectionInfo;
   view: View;
-  layout: "narrow" | "wide";
+  layout: "narrow" | "wide" | "full";
   applying: boolean;
 }
 
@@ -71,23 +88,26 @@ export class App {
   private root: HTMLElement;
   private els!: {
     pill: HTMLElement;
+    sidebar: HTMLElement;
+    tabs: HTMLElement;
     chips: HTMLElement;
+    context: HTMLElement;
     grid: HTMLElement;
     gridScroll: HTMLElement;
     search: HTMLInputElement;
     inspector: HTMLElement;
     sheet: HTMLElement;
     toasts: HTMLElement;
-    body: HTMLElement;
     applyBtn?: HTMLButtonElement;
     applyNote?: HTMLElement;
-    multiNotice?: HTMLElement;
+    notice?: HTMLElement;
   };
   private cardPlayers: PreviewPlayer[] = [];
   private mainPlayer?: PreviewPlayer;
   private stopWatching?: () => void;
   private selectionKey = "";
   private refreshing = false;
+  private lastRefresh = 0;
   private lastWidth = 0;
 
   constructor(root: HTMLElement) {
@@ -95,11 +115,10 @@ export class App {
     const favorites = load<string[]>("favorites", []);
     this.s = {
       query: "",
-      category: "all",
+      filter: "all",
       selectedId: load<string>("selected", ANIMATIONS[0].id),
       favorites: Array.isArray(favorites) ? favorites.filter((id) => getAnimation(id)) : [],
       paramsById: load<Record<string, ParamValues>>("params", {}),
-      modeById: load<Record<string, AnimationMode>>("modes", {}),
       presets: load<UserPreset[]>("presets", []),
       settings: sanitizeSettings(load("settings", DEFAULT_SETTINGS)),
       selection: { status: "no-host", clips: [], ignored: 0 },
@@ -118,19 +137,24 @@ export class App {
     this.root.classList.add("mc-app");
     replaceChildren(this.root, this.buildShell());
     this.updateLayout();
-    this.renderChips();
+    this.renderNav();
+    this.renderContext();
     this.renderGrid();
     this.renderInspector();
     this.renderStatus();
+    // Pas de minuteur permanent : on réagit au redimensionnement et au retour de la souris.
     window.addEventListener("resize", () => this.updateLayout());
-    // Filet de sécurité si l'événement resize n'est pas émis par l'hôte.
-    setInterval(() => this.updateLayout(), 500);
+    this.root.addEventListener("mouseenter", () => {
+      this.updateLayout();
+      if (Date.now() - this.lastRefresh > 800) void this.refreshSelection();
+    });
     document.addEventListener("keydown", (e) => this.onKey(e));
     this.start();
   }
 
-  /** Panneau visible : suivi de la sélection. */
+  /** Panneau visible : suivi de la sélection, aperçus autorisés. */
   start() {
+    suspendPreviews(false);
     if (this.stopWatching) return;
     void this.refreshSelection();
     this.stopWatching = watchSelection(() => void this.refreshSelection());
@@ -140,6 +164,7 @@ export class App {
   stop() {
     this.stopWatching?.();
     this.stopWatching = undefined;
+    suspendPreviews(true);
     this.mainPlayer?.pause();
     this.cardPlayers.forEach((p) => p.stop());
   }
@@ -150,14 +175,18 @@ export class App {
 
   private buildShell(): HTMLElement {
     const pill = h("button", { class: "pill", type: "button", title: "Actualiser la sélection", onclick: () => void this.refreshSelection(true) });
+    const onQuery = () => {
+      this.renderGrid();
+      this.renderNav();
+      this.renderContext();
+    };
     const search = h("input", {
       class: "search-input",
       type: "text",
-      placeholder: "Rechercher une animation…",
+      placeholder: "Rechercher : zoom, shake, flou, mot…",
       oninput: (e: Event) => {
         this.s.query = (e.target as HTMLInputElement).value;
-        this.renderGrid();
-        this.renderChips();
+        onQuery();
       },
     });
     const clearSearch = h(
@@ -169,14 +198,16 @@ export class App {
         onclick: () => {
           search.value = "";
           this.s.query = "";
-          this.renderGrid();
-          this.renderChips();
+          onQuery();
           search.focus();
         },
       },
       icon("x", C.text3, 13),
     );
+    const sidebar = h("nav", { class: "sidebar scroll" });
+    const tabs = h("div", { class: "family-tabs" });
     const chips = h("div", { class: "chips" });
+    const context = h("div", { class: "context-bar" });
     const grid = h("div", { class: "grid" });
     const gridScroll = h("div", { class: "scroll grid-scroll" }, grid);
     const inspector = h("div", { class: "inspector" });
@@ -187,11 +218,13 @@ export class App {
       "section",
       { class: "library" },
       h("div", { class: "search" }, icon("search", C.text3, 15), search, h("span", { class: "kbd" }, "/"), clearSearch),
+      tabs,
       chips,
+      context,
       gridScroll,
     );
-    const body = h("div", { class: "body" }, library, inspector);
-    this.els = { pill, chips, grid, gridScroll, search, inspector, sheet, toasts, body };
+    const body = h("div", { class: "body" }, sidebar, library, inspector);
+    this.els = { pill, sidebar, tabs, chips, context, grid, gridScroll, search, inspector, sheet, toasts };
 
     return h(
       "div",
@@ -220,17 +253,16 @@ export class App {
     const width = this.root.getBoundingClientRect().width || window.innerWidth;
     if (Math.abs(width - this.lastWidth) < 1) return;
     this.lastWidth = width;
-    const layout = width >= 600 ? "wide" : "narrow";
+    const layout = width >= 900 ? "full" : width >= 600 ? "wide" : "narrow";
     const size = width < 340 ? "xs" : width < 600 ? "sm" : width < 900 ? "md" : "lg";
     this.root.setAttribute("data-size", size);
-    if (layout !== this.s.layout) {
-      this.s.layout = layout;
-      this.root.setAttribute("data-layout", layout);
-      if (layout === "wide" && this.s.view === "inspector") this.s.view = "library";
-    }
+    if (layout !== "narrow" && this.s.view === "inspector") this.s.view = "library";
+    this.s.layout = layout;
     this.root.setAttribute("data-layout", layout);
     this.applyView();
     this.layoutGrid();
+    this.cardPlayers.forEach((p) => p.refresh());
+    this.mainPlayer?.refresh();
   }
 
   private applyView() {
@@ -239,8 +271,8 @@ export class App {
 
   private layoutGrid() {
     const w = this.els.gridScroll.getBoundingClientRect().width || 300;
-    const min = this.root.getAttribute("data-size") === "xs" ? 128 : 150;
-    const cols = Math.max(1, Math.min(4, Math.floor((w - 4) / (min + 10))));
+    const min = this.root.getAttribute("data-size") === "xs" ? 128 : 156;
+    const cols = Math.max(1, Math.min(5, Math.floor((w - 4) / (min + 10))));
     this.els.grid.setAttribute("data-cols", String(cols));
     const pct = `${(100 / cols).toFixed(4)}%`;
     for (const card of Array.from(this.els.grid.children) as HTMLElement[]) {
@@ -255,9 +287,10 @@ export class App {
   private async refreshSelection(manual = false) {
     if (this.refreshing) return;
     this.refreshing = true;
+    this.lastRefresh = Date.now();
     try {
       const info = await getSelectionInfo();
-      const key = JSON.stringify([info.status, info.clips.map((c) => [c.name, c.start, c.track]), info.ignored]);
+      const key = JSON.stringify([info.status, info.clips.map((c) => c.name), info.ignored]);
       if (key !== this.selectionKey || manual) {
         this.selectionKey = key;
         this.s.selection = info;
@@ -279,69 +312,147 @@ export class App {
     else if (sel.status === "no-sequence") text = "Aucune séquence";
     else if (sel.status === "ok") {
       tone = n ? "ok" : "warn";
-      text = n ? `${n} ${n > 1 ? "textes sélectionnés" : "texte sélectionné"}` : "Aucun texte sélectionné";
+      text = n ? `${n} clip${n > 1 ? "s" : ""} sélectionné${n > 1 ? "s" : ""}` : "Aucun clip sélectionné";
     }
     replaceChildren(this.els.pill, h("span", { class: cx("dot", tone) }), h("span", { class: "pill-text" }, text));
+    const names = sel.clips.map((c) => c.name).filter(Boolean);
     this.els.pill.title =
       sel.status === "ok" && n
-        ? `${sel.clips.map((c) => c.name).slice(0, 8).join(", ")}${n > 8 ? "…" : ""}\nCliquer pour actualiser`
-        : "Sélectionnez un ou plusieurs textes dans la timeline · Cliquer pour actualiser";
+        ? `${names.join(", ")}${n > names.length ? "…" : ""}\nCliquer pour actualiser`
+        : "Sélectionnez un ou plusieurs clips dans la timeline · Cliquer pour actualiser";
     this.updateApplyButton();
-    this.updateMultiNotice();
+    this.updateNotice();
+    this.updateSummary();
   }
 
   /* ---------------------------------------------------------------- */
-  /* Bibliothèque                                                       */
+  /* Navigation (barre latérale / onglets / puces)                      */
   /* ---------------------------------------------------------------- */
+
+  private matchesFilter(a: AnimationDefinition, f: Filter): boolean {
+    if (f === "all") return true;
+    if (f === "favorites") return this.s.favorites.includes(a.id);
+    if (f.startsWith("family:")) return familyOf(a) === f.slice(7);
+    return a.category === f;
+  }
 
   private filtered(): AnimationDefinition[] {
-    return ANIMATIONS.filter((a) => {
-      if (this.s.category === "favorites" && !this.s.favorites.includes(a.id)) return false;
-      if (this.s.category !== "all" && this.s.category !== "favorites" && a.category !== this.s.category) return false;
-      return matchesQuery(a, this.s.query);
-    });
+    return ANIMATIONS.filter((a) => this.matchesFilter(a, this.s.filter) && matchesQuery(a, this.s.query));
   }
 
-  private renderChips() {
+  private setFilter(f: Filter) {
+    this.s.filter = f;
+    this.renderNav();
+    this.renderContext();
+    this.renderGrid();
+    this.els.gridScroll.scrollTop = 0;
+  }
+
+  private renderNav() {
     const searchOnly = ANIMATIONS.filter((a) => matchesQuery(a, this.s.query));
-    const count = (f: CategoryFilter) =>
-      f === "all"
-        ? searchOnly.length
-        : f === "favorites"
-          ? searchOnly.filter((a) => this.s.favorites.includes(a.id)).length
-          : searchOnly.filter((a) => a.category === f).length;
-    const chip = (f: CategoryFilter, label: string, iconName: string) =>
+    const count = (f: Filter) => searchOnly.filter((a) => this.matchesFilter(a, f)).length;
+    const active = (f: Filter) => this.s.filter === f;
+    const present = CATEGORIES.filter((c) => ANIMATIONS.some((a) => a.category === c.id));
+
+    // Barre latérale (grand panneau)
+    const item = (f: Filter, label: string, iconName: string, sub = false) =>
       h(
         "button",
-        {
-          type: "button",
-          class: cx("chip", this.s.category === f && "active"),
-          onclick: () => {
-            this.s.category = f;
-            this.renderChips();
-            this.renderGrid();
-          },
-        },
-        icon(iconName, this.s.category === f ? C.text : C.text3, 13, f === "favorites" && this.s.category === f),
+        { type: "button", class: cx("nav-item", sub && "sub", active(f) && "active"), onclick: () => this.setFilter(f) },
+        icon(iconName, active(f) ? C.text : C.text3, 14, f === "favorites" && active(f)),
+        h("span", { class: "nav-label" }, label),
+        h("span", { class: "nav-count" }, String(count(f))),
+      );
+    replaceChildren(
+      this.els.sidebar,
+      item("all", "Toutes", "all"),
+      item("favorites", "Favoris", "star"),
+      FAMILIES.map((fam) => [
+        h("div", { class: "nav-heading" }, fam.label),
+        item(`family:${fam.id}`, `Tout ${fam.label.toLowerCase()}`, FAMILY_ICON[fam.id]),
+        present.filter((c) => c.family === fam.id).map((c) => item(c.id, c.label, c.id, true)),
+      ]),
+    );
+
+    // Onglets de famille + puces (panneaux plus étroits)
+    const famOfFilter: FamilyId | null = this.s.filter.startsWith("family:")
+      ? (this.s.filter.slice(7) as FamilyId)
+      : (CATEGORIES.find((c) => c.id === this.s.filter)?.family ?? null);
+    const tab = (f: Filter, label: string, on: boolean) =>
+      h("button", { type: "button", class: cx("ftab", on && "active"), onclick: () => this.setFilter(f) }, label, h("span", { class: "ftab-count" }, String(count(f))));
+    replaceChildren(
+      this.els.tabs,
+      tab("all", "Toutes", this.s.filter === "all"),
+      FAMILIES.map((fam) => tab(`family:${fam.id}`, fam.label, famOfFilter === fam.id)),
+      tab("favorites", "★ Favoris", this.s.filter === "favorites"),
+    );
+    const chip = (f: Filter, label: string, iconName: string) =>
+      h(
+        "button",
+        { type: "button", class: cx("chip", active(f) && "active"), onclick: () => this.setFilter(active(f) && famOfFilter ? `family:${famOfFilter}` : f) },
+        icon(iconName, active(f) ? C.text : C.text3, 13),
         h("span", null, label),
         h("span", { class: "chip-count" }, String(count(f))),
       );
-    const present = CATEGORIES.filter((c) => ANIMATIONS.some((a) => a.category === c.id));
-    replaceChildren(
-      this.els.chips,
-      chip("all", "Tout", "all"),
-      chip("favorites", "Favoris", "star"),
-      h("span", { class: "chip-sep" }),
-      present.map((c) => chip(c.id, c.label, c.id)),
-    );
+    const chipCats = famOfFilter ? present.filter((c) => c.family === famOfFilter) : [];
+    this.els.chips.classList.toggle("hidden", !chipCats.length);
+    replaceChildren(this.els.chips, chipCats.map((c) => chip(c.id, c.label, c.id)));
   }
+
+  /** Barre de contexte : sens (entrée/sortie) et placement, comme dans Motion Bro. */
+  private renderContext() {
+    const list = this.filtered();
+    const hasEntrance = list.some((a) => a.kind === "entrance");
+    const hasAccent = list.some((a) => a.kind === "accent");
+    const parts: HTMLElement[] = [];
+    if (hasEntrance) {
+      parts.push(
+        h(
+          "div",
+          { class: "ctx-group" },
+          h("span", { class: "ctx-label" }, "Sens"),
+          segmented(MODE_OPTIONS, this.s.settings.mode, (m) => this.setMode(m)),
+        ),
+      );
+    }
+    if (hasAccent) {
+      parts.push(
+        h(
+          "div",
+          { class: "ctx-group" },
+          h("span", { class: "ctx-label" }, "Placer à"),
+          segmented(ANCHOR_OPTIONS, this.s.settings.anchor, (v) => this.setAnchor(v)),
+        ),
+      );
+    }
+    this.els.context.classList.toggle("hidden", !parts.length);
+    replaceChildren(this.els.context, parts);
+  }
+
+  private setMode(m: AnimationMode) {
+    this.updateSettings({ mode: m });
+    this.renderContext();
+    for (const p of this.cardPlayers) p.setMode(m);
+    this.refreshCardBadges();
+    this.renderInspector();
+  }
+
+  private setAnchor(v: AccentAnchor) {
+    this.updateSettings({ anchor: v });
+    this.renderContext();
+    this.renderInspector();
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Grille                                                             */
+  /* ---------------------------------------------------------------- */
 
   private renderGrid() {
     this.cardPlayers.forEach((p) => p.destroy());
     this.cardPlayers = [];
     const list = this.filtered();
     if (!list.length) {
-      const fav = this.s.category === "favorites" && !this.s.query;
+      const fav = this.s.filter === "favorites" && !this.s.query;
       replaceChildren(
         this.els.grid,
         h(
@@ -349,22 +460,16 @@ export class App {
           { class: "empty" },
           h("div", { class: "empty-icon", html: iconSvg(fav ? "star" : "search", C.text3, 22) }),
           h("div", { class: "empty-title" }, fav ? "Aucun favori pour l'instant" : `Aucun résultat pour « ${this.s.query} »`),
-          h(
-            "div",
-            { class: "empty-text" },
-            fav ? "Cliquez sur l'étoile d'une animation pour la retrouver ici." : "Essayez « pop », « flou », « mot » ou « rebond ».",
-          ),
+          h("div", { class: "empty-text" }, fav ? "Cliquez sur l'étoile d'une animation pour la retrouver ici." : "Essayez « zoom », « shake », « flou » ou « mot »."),
           h(
             "button",
             {
               class: "btn ghost",
               type: "button",
               onclick: () => {
-                this.s.category = "all";
                 this.s.query = "";
                 this.els.search.value = "";
-                this.renderChips();
-                this.renderGrid();
+                this.setFilter("all");
               },
             },
             "Voir toutes les animations",
@@ -375,11 +480,27 @@ export class App {
     }
     replaceChildren(this.els.grid, list.map((a) => this.buildCard(a)));
     this.layoutGrid();
+    // Les vignettes vidéo ont besoin de leur taille réelle une fois insérées.
+    this.cardPlayers.forEach((p) => p.refresh());
+  }
+
+  private kindBadge(a: AnimationDefinition): string {
+    if (a.kind === "accent") return "Ponctuel";
+    if (a.kind === "span") return "Tout le clip";
+    return MODE_OPTIONS.find((m) => m.value === this.s.settings.mode)?.label ?? "Entrée";
+  }
+
+  private refreshCardBadges() {
+    for (const card of Array.from(this.els.grid.querySelectorAll(".card")) as HTMLElement[]) {
+      const a = getAnimation(card.getAttribute("data-id") ?? "");
+      const badge = card.querySelector(".kind-badge");
+      if (a && badge) badge.textContent = this.kindBadge(a);
+    }
   }
 
   private buildCard(a: AnimationDefinition): HTMLElement {
     const player = new PreviewPlayer({ fontSize: 17 });
-    player.setAnimation(a, this.paramsFor(a), this.modeFor(a), this.s.settings.previewText || a.previewText);
+    player.setAnimation(a, this.paramsFor(a), this.s.settings.mode, this.s.settings.previewText || a.previewText);
     this.cardPlayers.push(player);
     const fav = this.s.favorites.includes(a.id);
     const favBtn = h(
@@ -395,13 +516,31 @@ export class App {
       },
       icon("star", fav ? C.star : C.text3, 14, fav),
     );
+    const quickApply = h(
+      "button",
+      {
+        type: "button",
+        class: "card-apply",
+        title: "Appliquer avec les réglages actuels",
+        onclick: (e: Event) => {
+          e.stopPropagation();
+          this.select(a.id, false);
+          void this.apply(a);
+        },
+      },
+      icon("wand", "#FFFFFF", 12),
+      h("span", { class: "card-apply-label" }, "Appliquer"),
+    );
     const stage = h(
       "div",
-      { class: "stage card-stage" },
+      { class: cx("stage card-stage", a.subject === "video" && "video") },
       player.el,
       favBtn,
+      h("span", { class: cx("kind-badge", a.kind) }, this.kindBadge(a)),
       a.multiLayer ? h("span", { class: "card-badge", title: "Conçue pour plusieurs calques texte" }, icon("layers", C.text2, 11), "Multi") : null,
+      quickApply,
     );
+    const animated = () => this.s.settings.animatedPreviews;
     const card = h(
       "div",
       {
@@ -409,22 +548,23 @@ export class App {
         tabIndex: 0,
         role: "button",
         "data-id": a.id,
+        title: "Clic : personnaliser · Double-clic : appliquer",
         onclick: () => this.select(a.id, true),
+        ondblclick: () => void this.apply(a),
         onkeydown: (e: KeyboardEvent) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             this.select(a.id, true);
           }
         },
-        onmouseenter: () => player.play(true),
-        onmouseleave: () => (this.s.settings.autoplayCards ? null : player.stop()),
-        onfocus: () => player.play(true),
-        onblur: () => (this.s.settings.autoplayCards ? null : player.stop()),
+        onmouseenter: () => animated() && player.play(true),
+        onmouseleave: () => player.stop(),
+        onfocus: () => animated() && player.play(true),
+        onblur: () => player.stop(),
       },
       stage,
       h("div", { class: "card-meta" }, h("div", { class: "card-title" }, a.name), h("div", { class: "card-sub" }, a.tagline)),
     );
-    if (this.s.settings.autoplayCards) player.play(true);
     return h("div", { class: "card-cell" }, card);
   }
 
@@ -432,8 +572,8 @@ export class App {
     const favs = this.s.favorites;
     this.s.favorites = favs.includes(id) ? favs.filter((x) => x !== id) : [...favs, id];
     save("favorites", this.s.favorites);
-    this.renderChips();
-    if (this.s.category === "favorites") this.renderGrid();
+    this.renderNav();
+    if (this.s.filter === "favorites") this.renderGrid();
     else this.refreshCardFavorites();
     this.renderInspectorHeaderFav();
   }
@@ -457,11 +597,15 @@ export class App {
     for (const card of Array.from(this.els.grid.querySelectorAll(".card")) as HTMLElement[]) {
       card.classList.toggle("selected", card.getAttribute("data-id") === id);
     }
-    if (changed) this.renderInspector();
+    if (changed) {
+      this.renderInspector();
+      if (this.s.settings.animatedPreviews && this.s.layout !== "narrow") this.mainPlayer?.play(true);
+    }
     if (openInspector && this.s.layout === "narrow") {
       this.s.view = "inspector";
       this.applyView();
-      this.mainPlayer?.play(true);
+      this.mainPlayer?.refresh();
+      if (this.s.settings.animatedPreviews) this.mainPlayer?.play(true);
     }
   }
 
@@ -477,24 +621,22 @@ export class App {
     return sanitizeParams(a, this.s.paramsById[a.id]);
   }
 
-  private modeFor(a: AnimationDefinition): AnimationMode {
-    return this.s.modeById[a.id] ?? "in";
-  }
-
   private setParams(a: AnimationDefinition, params: ParamValues, persist: boolean) {
     this.s.paramsById[a.id] = params;
     if (persist) save("params", this.s.paramsById);
-    this.mainPlayer?.setAnimation(a, params, this.modeFor(a));
+    this.mainPlayer?.setAnimation(a, params, this.s.settings.mode);
+    if (persist && this.s.settings.animatedPreviews) this.mainPlayer?.play(true);
     this.updateSummary();
   }
 
   private renderInspector() {
     const a = this.current();
     this.mainPlayer?.destroy();
-    const player = new PreviewPlayer({ fontSize: 30 });
+    // Lecture limitée à 2 boucles : l'aperçu ne tourne jamais en continu.
+    const player = new PreviewPlayer({ fontSize: 30, maxLoops: 2 });
     this.mainPlayer = player;
     const params = this.paramsFor(a);
-    player.setAnimation(a, params, this.modeFor(a), this.s.settings.previewText || a.previewText);
+    player.setAnimation(a, params, this.s.settings.mode, this.s.settings.previewText || a.previewText);
 
     // En-tête
     const category = CATEGORIES.find((c) => c.id === a.category);
@@ -511,6 +653,7 @@ export class App {
           onclick: () => {
             this.s.view = "library";
             this.applyView();
+            player.pause();
           },
         },
         icon("back", C.text2, 16),
@@ -519,7 +662,7 @@ export class App {
         "div",
         { class: "insp-title-wrap" },
         h("div", { class: "insp-title" }, a.name),
-        h("div", { class: "insp-cat" }, icon(a.category, C.text3, 12), category?.label ?? ""),
+        h("div", { class: "insp-cat" }, icon(a.category, C.text3, 12), `${category?.label ?? ""} · ${this.kindBadge(a)}`),
       ),
       favWrap,
     );
@@ -527,8 +670,9 @@ export class App {
     // Aperçu + transport
     const progress = h("div", { class: "tp-fill" });
     const timeLabel = h("span", { class: "tp-time" }, "0,00 s");
-    const playBtn = h("button", { class: "icon-btn small", type: "button", title: "Lecture / pause (espace)" });
+    const playBtn = h("button", { class: "icon-btn small", type: "button", title: "Lecture / pause" });
     const setPlayIcon = () => (playBtn.innerHTML = iconSvg(player.playing ? "pause" : "play", C.text, 14, !player.playing));
+    player.onStop(setPlayIcon);
     playBtn.addEventListener("click", () => {
       if (player.playing) player.pause();
       else player.play();
@@ -553,87 +697,77 @@ export class App {
       progress.style.width = `${((t / total) * 100).toFixed(2)}%`;
       timeLabel.textContent = `${formatNumber(t, 2)} s`;
     });
+    const replay = () => {
+      player.play(true);
+      setPlayIcon();
+    };
     const transport = h(
       "div",
       { class: "transport" },
       playBtn,
-      h(
-        "button",
-        {
-          class: "icon-btn small",
-          type: "button",
-          title: "Rejouer depuis le début",
-          onclick: () => {
-            player.play(true);
-            setPlayIcon();
-          },
-        },
-        icon("replay", C.text2, 14),
-      ),
+      h("button", { class: "icon-btn small", type: "button", title: "Rejouer", onclick: replay }, icon("replay", C.text2, 14)),
       bar,
       timeLabel,
     );
-    const preview = h("div", { class: "stage main-stage" }, player.el, h("div", { class: "stage-safe" }));
-
-    // Résumé des propriétés Premiere utilisées
-    const props = [...new Set(a.uses.map((u) => PROPERTY_LABEL[u]))];
-    const uses = h(
+    const preview = h(
       "div",
-      { class: "uses" },
-      h("span", { class: "uses-label" }, "Images clés Premiere :"),
-      props.map((p) => h("span", { class: "tag" }, p)),
-    );
-
-    // Notice multi-calques
-    const multiNotice = h("div", { class: "notice-slot" });
-    this.els.multiNotice = multiNotice;
-
-    // Mode
-    const modeCtl = segmented(
-      MODE_OPTIONS,
-      this.modeFor(a),
-      (m) => {
-        this.s.modeById[a.id] = m;
-        save("modes", this.s.modeById);
-        player.setAnimation(a, this.paramsFor(a), m);
-        player.play(true);
-        setPlayIcon();
-        this.updateSummary();
+      {
+        class: cx("stage main-stage", a.subject === "video" && "video"),
+        title: "Survoler pour rejouer",
+        onmouseenter: () => this.s.settings.animatedPreviews && !player.playing && replay(),
       },
-      "Animation",
+      player.el,
+      a.subject === "text" ? h("div", { class: "stage-safe" }) : null,
     );
+
+    // Propriétés Premiere utilisées
+    const props = [...new Set(a.uses.map((u) => PROPERTY_LABEL[u]))];
+    const uses = h("div", { class: "uses" }, h("span", { class: "uses-label" }, "Images clés Premiere :"), props.map((p) => h("span", { class: "tag" }, p)));
+
+    const notice = h("div", { class: "notice-slot" });
+    this.els.notice = notice;
+
+    // Placement selon la nature de l'animation
+    let placement: HTMLElement | null = null;
+    if (a.kind === "entrance") placement = segmented(MODE_OPTIONS, this.s.settings.mode, (m) => this.setMode(m), "Sens");
+    if (a.kind === "accent") placement = segmented(ANCHOR_OPTIONS, this.s.settings.anchor, (v) => this.setAnchor(v), "Placer l'effet à");
+
+    // Vitesse (barre de durée façon Motion Bro)
+    const durationSpec = a.params.find((p) => p.id === "duration") as NumberParam | undefined;
+    let speed: HTMLElement | null = null;
+    if (durationSpec) {
+      const cur = Number(params.duration);
+      const activeSpeed = SPEEDS.find((sp) => Math.abs(durationSpec.default / sp.factor - cur) < 0.011)?.value ?? "";
+      speed = segmented(
+        SPEEDS.map(({ value, label }) => ({ value, label })),
+        activeSpeed,
+        (v) => {
+          const f = SPEEDS.find((sp) => sp.value === v)?.factor ?? 1;
+          const d = Math.min(durationSpec.max, Math.max(durationSpec.min, Math.round((durationSpec.default / f) * 100) / 100));
+          this.setParams(a, { ...this.paramsFor(a), duration: d }, true);
+          this.renderInspector();
+        },
+        "Vitesse",
+      );
+    }
 
     // Paramètres groupés
-    const handles: { spec: ParamSpec; set: (v: unknown) => void }[] = [];
     const groups: Record<string, HTMLElement[]> = { timing: [], motion: [], style: [] };
     for (const spec of a.params) {
       const value = params[spec.id];
-      const onValue = (v: number | string | boolean, final = true) => {
-        const next = { ...this.paramsFor(a), [spec.id]: v };
-        this.setParams(a, next, final);
-      };
+      const onValue = (v: number | string | boolean, final = true) => this.setParams(a, { ...this.paramsFor(a), [spec.id]: v }, final);
       let el: HTMLElement;
-      if (spec.type === "number") {
-        const sl = slider(spec as NumberParam, Number(value), (v, final) => onValue(v, final));
-        handles.push({ spec, set: (v) => sl.set(Number(v)) });
-        el = sl.el;
-      } else if (spec.type === "choice") {
-        el = choice(spec, String(value), (v) => onValue(v));
-        handles.push({ spec, set: () => undefined });
-      } else {
-        el = toggle(spec.label, Boolean(value), (v) => onValue(v), spec.hint);
-        handles.push({ spec, set: () => undefined });
-      }
+      if (spec.type === "number") el = slider(spec as NumberParam, Number(value), (v, final) => onValue(v, final)).el;
+      else if (spec.type === "choice") el = choice(spec, String(value), (v) => onValue(v));
+      else el = toggle(spec.label, Boolean(value), (v) => onValue(v), spec.hint);
       groups[spec.group ?? "motion"].push(el);
     }
     const sections = (Object.keys(groups) as (keyof typeof GROUP_LABEL)[])
       .filter((g) => groups[g].length)
       .map((g) => h("div", { class: "section" }, h("div", { class: "section-title" }, GROUP_LABEL[g]), groups[g]));
 
-    // Presets
     const presetsSlot = h("div", { class: "section" });
-    const renderPresets = () => this.renderPresetsSection(presetsSlot, a);
-    renderPresets();
+    this.renderPresetsSection(presetsSlot, a);
 
     const resetBtn = h(
       "button",
@@ -651,7 +785,6 @@ export class App {
       "Réinitialiser",
     );
 
-    // Pied de page : bouton Appliquer
     const applyBtn = h("button", { class: "btn primary apply", type: "button", onclick: () => void this.apply() }) as HTMLButtonElement;
     const applyNote = h("div", { class: "apply-note" });
     this.els.applyBtn = applyBtn;
@@ -662,8 +795,8 @@ export class App {
       { class: "scroll insp-scroll" },
       h("div", { class: "insp-preview" }, preview, transport, uses),
       h("p", { class: "insp-desc" }, a.description),
-      multiNotice,
-      h("div", { class: "section" }, modeCtl),
+      notice,
+      placement || speed ? h("div", { class: "section" }, placement, speed) : null,
       sections,
       presetsSlot,
       h("div", { class: "insp-actions" }, resetBtn),
@@ -671,9 +804,9 @@ export class App {
     replaceChildren(this.els.inspector, header, scroll, h("div", { class: "insp-footer" }, applyNote, applyBtn));
     this.renderInspectorHeaderFav(favWrap);
     this.updateApplyButton();
-    this.updateMultiNotice();
+    this.updateNotice();
     this.updateSummary();
-    player.play(true);
+    player.refresh();
     setPlayIcon();
   }
 
@@ -702,7 +835,7 @@ export class App {
         nameInput.focus();
         return;
       }
-      const preset: UserPreset = { id: makePresetId(), name, animationId: a.id, params: this.paramsFor(a), mode: this.modeFor(a), createdAt: Date.now() };
+      const preset: UserPreset = { id: makePresetId(), name, animationId: a.id, params: this.paramsFor(a), mode: this.s.settings.mode, createdAt: Date.now() };
       this.s.presets = [...this.s.presets, preset];
       save("presets", this.s.presets);
       this.renderPresetsSection(slot, a);
@@ -729,8 +862,8 @@ export class App {
             type: "button",
             title: "Charger ce preset",
             onclick: () => {
-              this.s.modeById[a.id] = p.mode;
-              save("modes", this.s.modeById);
+              this.updateSettings({ mode: p.mode });
+              this.renderContext();
               this.setParams(a, sanitizeParams(a, p.params), true);
               this.renderInspector();
               this.toast("info", `Preset « ${p.name} » chargé`);
@@ -785,38 +918,44 @@ export class App {
     const a = this.current();
     const params = this.paramsFor(a);
     const n = Math.max(1, this.s.selection.clips.length);
-    const motions = Array.from({ length: Math.min(n, 60) }, (_, i) => a.build(params, { index: i, count: n }));
-    const entry = Math.max(...motions.map((m) => m.delay + m.duration));
-    const mode = this.modeFor(a);
-    const modeLabel = MODE_OPTIONS.find((m) => m.value === mode)?.label ?? "";
-    replaceChildren(note, `${modeLabel} · ${formatNumber(entry, 2)} s${n > 1 ? ` · cascade sur ${n} textes` : ""}`);
+    let text: string;
+    if (a.kind === "span") text = "Sur toute la durée de chaque clip";
+    else {
+      const motions = Array.from({ length: Math.min(n, 60) }, (_, i) => a.build(params, { index: i, count: n, clipDuration: 5 }));
+      const entry = Math.max(...motions.map((m) => m.delay + m.duration));
+      const where =
+        a.kind === "accent"
+          ? (ANCHOR_OPTIONS.find((o) => o.value === this.s.settings.anchor)?.label ?? "")
+          : (MODE_OPTIONS.find((m) => m.value === this.s.settings.mode)?.label ?? "");
+      text = `${where} · ${formatNumber(entry, 2)} s${n > 1 && a.kind === "entrance" ? ` · cascade sur ${n} clips` : ""}`;
+    }
+    replaceChildren(note, text);
   }
 
-  private updateMultiNotice() {
-    const slot = this.els.multiNotice;
+  private updateNotice() {
+    const slot = this.els.notice;
     if (!slot) return;
     const a = this.current();
     const n = this.s.selection.clips.length;
-    if (!a.multiLayer) {
-      replaceChildren(slot);
-      return;
+    const info = (strong: string, text: string, ok = false) =>
+      h("div", { class: cx("notice", ok && "ok") }, icon(ok ? "check" : "info", ok ? C.success : C.accent, 14), h("div", null, h("b", null, strong), text));
+    let content: HTMLElement | null = null;
+    if (a.multiLayer) {
+      content =
+        n >= 2
+          ? info(`${n} calques texte`, " seront enchaînés dans l'ordre de la timeline (début, puis piste).", true)
+          : info(
+              "Un mot par calque texte. ",
+              "Premiere ne permet pas d'animer les mots à l'intérieur d'un seul texte : créez un calque par mot, sélectionnez-les tous, MotionCraft les enchaîne.",
+            );
+    } else if (a.kind === "accent" && this.s.settings.anchor === "playhead") {
+      content = info("Effet ponctuel. ", "Placez la tête de lecture à l'endroit voulu dans le clip, puis appliquez.");
+    } else if (a.kind === "span") {
+      content = info("Tout le clip. ", "L'effet couvre toute la durée de chaque clip sélectionné, quelle que soit sa longueur.");
+    } else if (a.category === "transition") {
+      content = info("Transition entre deux plans : ", "« Sortie » sur le premier clip, puis « Entrée » sur le suivant.");
     }
-    replaceChildren(
-      slot,
-      n >= 2
-        ? h("div", { class: "notice ok" }, icon("check", C.success, 14), h("div", null, h("b", null, `${n} calques texte`), " seront enchaînés dans l'ordre de la timeline (début, puis piste)."))
-        : h(
-            "div",
-            { class: "notice" },
-            icon("info", C.accent, 14),
-            h(
-              "div",
-              null,
-              h("b", null, "Un mot par calque texte. "),
-              "Premiere n'expose pas d'animation par mot à l'intérieur d'un seul texte : créez un calque par mot (ou groupe de mots), sélectionnez-les tous, MotionCraft les enchaîne automatiquement.",
-            ),
-          ),
-    );
+    replaceChildren(slot, content);
   }
 
   private updateApplyButton() {
@@ -827,30 +966,32 @@ export class App {
     const ready = sel.status === "ok" && n > 0 && !this.s.applying;
     btn.disabled = !ready;
     btn.classList.toggle("disabled", !ready);
+    this.root.classList.toggle("has-selection", ready);
     if (this.s.applying) return;
-    let label = "Sélectionnez un texte";
+    let label = "Sélectionnez un clip";
     if (sel.status === "no-host") label = "Ouvrez Premiere Pro";
     else if (sel.status === "no-project") label = "Ouvrez un projet";
     else if (sel.status === "no-sequence") label = "Ouvrez une séquence";
-    else if (n) label = n > 1 ? `Appliquer à ${n} textes` : "Appliquer";
+    else if (n) label = n > 1 ? `Appliquer à ${n} clips` : "Appliquer";
     replaceChildren(btn, icon(ready ? "wand" : "info", ready ? "#FFFFFF" : C.text3, 15), h("span", null, label), ready ? h("span", { class: "kbd light" }, isMac() ? "⌘↵" : "Ctrl↵") : null);
-    btn.title = ready ? "Ajoute de vraies images clés sur les clips sélectionnés" : "Sélectionnez un ou plusieurs textes dans la timeline Premiere Pro";
+    btn.title = ready ? "Ajoute de vraies images clés sur les clips sélectionnés" : "Sélectionnez un ou plusieurs clips dans la timeline Premiere Pro";
   }
 
   /* ---------------------------------------------------------------- */
   /* Application dans Premiere                                          */
   /* ---------------------------------------------------------------- */
 
-  private async apply() {
+  private async apply(target?: AnimationDefinition) {
     if (this.s.applying) return;
     await this.refreshSelection();
-    const a = this.current();
+    const a = target ?? this.current();
     const btn = this.els.applyBtn;
     if (!this.s.selection.clips.length) {
-      this.toast("warning", "Aucun texte sélectionné", "Sélectionnez un ou plusieurs textes dans la timeline, puis réessayez.");
+      this.toast("warning", "Aucun clip sélectionné", "Sélectionnez un ou plusieurs clips dans la timeline, puis réessayez.");
       return;
     }
     this.s.applying = true;
+    this.root.classList.add("is-applying");
     btn?.classList.add("busy");
     if (btn) btn.disabled = true;
     const setBusy = (label: string) => btn && replaceChildren(btn, h("span", { class: "spinner" }), h("span", null, label));
@@ -859,19 +1000,16 @@ export class App {
       const report = await applyAnimation({
         animation: a,
         params: this.paramsFor(a),
-        mode: this.modeFor(a),
+        mode: this.s.settings.mode,
+        anchor: this.s.settings.anchor,
         settings: this.s.settings,
         onProgress: (done, total, label) => setBusy(total > 1 && done < total ? `${label} ${done + 1}/${total}` : `${label}…`),
       });
-      const details = [
-        `${report.keyCount} images clés · ${report.durationMs} ms`,
-        ...report.failed.map((f) => `✕ ${f.name} : ${f.error}`),
-        ...report.warnings,
-      ];
+      const details = [`${report.keyCount} images clés · ${report.durationMs} ms`, ...report.failed.map((f) => `✕ ${f.name} : ${f.error}`), ...report.warnings];
       if (report.applied && !report.failed.length) {
-        this.toast("success", `${a.name} appliqué${report.applied > 1 ? ` à ${report.applied} textes` : ""}`, `Annuler : ${isMac() ? "⌘Z" : "Ctrl+Z"}`, details);
+        this.toast("success", `${a.name} appliqué${report.applied > 1 ? ` à ${report.applied} clips` : ""}`, `Annuler : ${isMac() ? "⌘Z" : "Ctrl+Z"}`, details);
       } else if (report.applied) {
-        this.toast("warning", `${a.name} appliqué à ${report.applied} / ${report.applied + report.failed.length} textes`, "Certains clips n'ont pas pu être animés.", details);
+        this.toast("warning", `${a.name} appliqué à ${report.applied} / ${report.applied + report.failed.length} clips`, "Certains clips n'ont pas pu être animés.", details);
       } else {
         this.toast("error", "Aucun clip n'a pu être animé", report.failed[0]?.error, details);
       }
@@ -880,6 +1018,7 @@ export class App {
       this.toast("error", messageOf(e), hint);
     } finally {
       this.s.applying = false;
+      this.root.classList.remove("is-applying");
       btn?.classList.remove("busy");
       this.updateApplyButton();
       void this.refreshSelection(true);
@@ -1010,7 +1149,12 @@ export class App {
           this.cardPlayers.forEach((p) => p.setText(v));
           this.mainPlayer?.setText(v || this.current().previewText || "");
         }),
-        toggle("Lecture automatique des vignettes", st.autoplayCards, (v) => this.updateSettings({ autoplayCards: v }, "previews"), "Sinon, les vignettes s'animent au survol."),
+        toggle(
+          "Aperçus animés",
+          st.animatedPreviews,
+          (v) => this.updateSettings({ animatedPreviews: v }, "previews"),
+          "Les vignettes s'animent au survol. Désactivez pour un panneau totalement statique (machine chargée).",
+        ),
       ),
       h(
         "div",
@@ -1137,7 +1281,7 @@ export class App {
         this.els.search.value = "";
         this.s.query = "";
         this.renderGrid();
-        this.renderChips();
+        this.renderNav();
       }
       return;
     }
@@ -1232,3 +1376,4 @@ const isMac = () => {
 };
 
 const LOGO_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="1" y="1" width="22" height="22" rx="6.5" fill="#7C6CFF"/><path d="M6.5 16.5V8.2c0-.5.6-.8 1-.4l3.6 3.9c.5.5 1.3.5 1.8 0l3.6-3.9c.4-.4 1-.1 1 .4v8.3" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="17" r="1.3" fill="#fff"/></svg>`;
+
