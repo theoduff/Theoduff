@@ -26,13 +26,11 @@ document.getElementById('s').innerHTML=`
 </defs>
 <g clip-path="url(#c)">
  <rect width="${W}" height="${H}" fill="url(#bg)"/>
- <rect y="${H*0.72}" width="${W}" height="${H*0.28}" filter="url(#crowdF)" mask="url(#crowdM)" opacity=".55"/>
  <g mask="url(#sideMask)">
   <rect x="0" y="0" width="${W*0.11}" height="${H}" fill="url(#rl)"/>
   <rect x="${W*0.89}" y="0" width="${W*0.11}" height="${H}" fill="url(#rr)"/>
  </g>
  <path d="${curve}" fill="none" stroke="#5b6bff" stroke-opacity=".35" stroke-width="${W*0.03}" filter="url(#blur)"/>
  <path d="${curve}" fill="none" stroke="#ffffff" stroke-width="3"/>
- <rect width="${W}" height="${H}" filter="url(#grain)"/>
 </g>`;
 </script></body></html>
