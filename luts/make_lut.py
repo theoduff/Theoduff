@@ -1,7 +1,7 @@
-"""Génère des LUT .cube : Sony S-Log3/S-Log2 (A7 III) -> Rec.709 + look.
+"""Génère des LUT .cube : Sony S-Log3/S-Log2 (A7 III) -> Rec.709 + looks.
 
 Usage : python3 make_lut.py [image_log_a_previsualiser]
-Toutes les valeurs du look sont dans LOOK, en haut du fichier.
+Chaque look est un dict dans LOOKS : tous les réglages sont là.
 """
 import sys
 import numpy as np
@@ -9,27 +9,50 @@ import colour
 
 SIZE = 33
 
-# Réglages du look (tout se règle ici)
-LOOK = dict(
-    exposure=0.0,        # stops ajoutés avant le tone mapping (rushs légèrement sous-ex)
-    temp=-0.03,          # <0 refroidit (compense le blanc trop orange), >0 réchauffe
-    tint=-0.015,           # >0 magenta, <0 vert
-    contrast=0.92,       # pente de la courbe filmique (en stops)
-    black=0.03,          # noir relevé (valeur Rec.709)
-    white=0.965,         # blanc maxi (roll-off doux)
-    grey=0.41,           # où tombe le gris 18 %
-    hue_preserve=0.35,    # 0 = courbe par canal (film), 1 = conserve la teinte
-    saturation=0.90,
-    red_to_orange=0.015,  # tourne les rouges/bordeaux vers l'orange (anti-magenta)
-    skin_protect=0.10,   # rend de la saturation aux teintes peau/orangées
-    shadow_tint=(-0.006, 0.0, 0.004),   # ombres très légèrement froides
-    high_tint=(0.012, 0.004, -0.014),   # hautes lumières crème
-)
+LOOKS = {
+    # v1 : chaud, doux, noirs relevés
+    "DOUX": dict(
+        exposure=0.0,        # stops ajoutés avant le tone mapping
+        temp=-0.03,          # <0 refroidit, >0 réchauffe (avant le look)
+        tint=-0.015,         # >0 magenta, <0 vert
+        contrast=0.92,       # pente de la courbe filmique (en stops)
+        black=0.03,          # noir (valeur Rec.709)
+        white=0.965,         # blanc maxi (roll-off doux)
+        grey=0.41,           # où tombe le gris 18 %
+        hue_preserve=0.35,   # 0 = courbe par canal (film), 1 = conserve la teinte
+        saturation=0.90,
+        red_to_orange=0.015,  # tourne les rouges/bordeaux vers l'orange
+        green_to_olive=0.0,   # tourne les verts vers le jaune (olive)
+        green_desat=0.0,      # désature les verts (0-1)
+        skin_protect=0.10,    # rend de la saturation aux teintes peau
+        shadow_mul=(0.994, 1.0, 1.004),  # teinte des neutres dans les ombres
+        high_mul=(1.012, 1.004, 0.986),  # teinte des neutres dans les hautes lumières
+    ),
+    # v2 : calé sur la référence Insta (sombre, noirs profonds, ambre / olive)
+    "MOODY": dict(
+        exposure=-0.2,
+        temp=-0.20,          # on neutralise d'abord l'orange du rush...
+        tint=-0.25,
+        contrast=1.05,
+        black=0.004,
+        white=0.955,
+        grey=0.35,
+        hue_preserve=0.45,
+        saturation=0.75,
+        red_to_orange=0.02,
+        green_to_olive=0.05,
+        green_desat=0.45,
+        skin_protect=0.18,
+        shadow_mul=(1.08, 1.0, 0.80),    # ...puis on pose la dominante ambre de la réf
+        high_mul=(1.04, 1.0, 0.94),
+    ),
+}
 
 S3C_TO_709 = colour.matrix_RGB_to_RGB(
     colour.RGB_COLOURSPACES["S-Gamut3.Cine"], colour.RGB_COLOURSPACES["ITU-R BT.709"])
 S3_TO_709 = colour.matrix_RGB_to_RGB(
     colour.RGB_COLOURSPACES["S-Gamut3"], colour.RGB_COLOURSPACES["ITU-R BT.709"])
+LUMA = np.array([0.2126, 0.7152, 0.0722])
 
 
 def legal_to_cv(v):
@@ -53,48 +76,50 @@ def filmic(lin, L):
     return lo + (hi - lo) / (1 + np.exp(-k * (s - s0)))
 
 
-def luma(rgb):
-    return rgb @ np.array([0.2126, 0.7152, 0.0722])
+def hue_band(h, centre, width):
+    d = (h - centre + 0.5) % 1 - 0.5
+    return np.exp(-(d / width) ** 2)
 
 
-def transform(v, curve="slog3", look=True):
-    L = LOOK
+def transform(v, curve="slog3", L=None):
     lin = decode(v, curve)
     m = S3C_TO_709 if curve == "slog3" else S3_TO_709
     lin = lin @ m.T
-    if not look:
+    if L is None:
         # Conversion neutre : exposition 0, courbe filmique standard
-        return np.clip(filmic(lin, dict(L, black=0.0, white=1.0, contrast=0.9, grey=0.43)), 0, 1)
+        return np.clip(filmic(lin, dict(black=0.0, white=1.0, contrast=0.9, grey=0.43)), 0, 1)
     lin = lin * 2 ** L["exposure"]
     lin = lin * np.array([1 + L["temp"], 1 - L["tint"] * 0.5, 1 - L["temp"]])
     lin = np.maximum(lin, 0)
     # Courbe : mélange par canal / conservation de teinte
     per_ch = filmic(lin, L)
     n = np.maximum(lin.max(-1, keepdims=True), 1e-6)
-    ratio = filmic(n, L) * (lin / n)
-    out = per_ch * (1 - L["hue_preserve"]) + np.maximum(ratio, L["black"]) * L["hue_preserve"]
-    # Saturation avec protection de la peau
-    y = luma(out)[..., None]
+    ratio = np.maximum(filmic(n, L) * (lin / n), L["black"])
+    out = per_ch * (1 - L["hue_preserve"]) + ratio * L["hue_preserve"]
+    # Teintes : rouges -> orange, verts -> olive désaturé
     hsv = colour.RGB_to_HSV(np.clip(out, 0, 1))
-    hsv_h = hsv[..., 0]
-    reds = np.exp(-(((hsv_h + 0.5) % 1 - 0.5 - 0.01) / 0.04) ** 2)
-    hsv[..., 0] = (hsv_h + L["red_to_orange"] * reds) % 1
+    h = hsv[..., 0]
+    greens = hue_band(h, 0.30, 0.10)
+    h = h + L["red_to_orange"] * hue_band(h, 0.01, 0.04) - L["green_to_olive"] * greens
+    hsv[..., 0] = h % 1
+    hsv[..., 1] = hsv[..., 1] * (1 - L["green_desat"] * greens)
     out = colour.HSV_to_RGB(hsv)
-    hsv_h = hsv[..., 0]
-    skin = np.exp(-((hsv_h - 0.06) / 0.05) ** 2)[..., None]  # ~20° (orange)
-    sat = L["saturation"] + L["skin_protect"] * skin
-    out = y + (out - y) * sat
-    # Split toning ombres / hautes lumières
-    w = np.clip(y, 0, 1)
-    out = out + np.array(L["shadow_tint"]) * (1 - w) ** 2 + np.array(L["high_tint"]) * w ** 2
-    return np.clip(out, 0, 1)
+    # Saturation globale, peau protégée
+    y = (out @ LUMA)[..., None]
+    skin = hue_band(hsv[..., 0], 0.06, 0.05)[..., None]
+    out = y + (out - y) * (L["saturation"] + L["skin_protect"] * skin)
+    # Dominante ombres / hautes lumières (multiplicative, luminance conservée)
+    w = np.clip(y / 0.6, 0, 1) ** 0.8
+    mul = np.array(L["shadow_mul"]) * (1 - w) + np.array(L["high_mul"]) * w
+    mul = mul / (mul @ LUMA)[..., None]
+    return np.clip(out * mul, 0, 1)
 
 
-def write_cube(path, curve, look, title):
+def write_cube(path, curve, L, title):
     g = np.linspace(0, 1, SIZE)
     b, gg, r = np.meshgrid(g, g, g, indexing="ij")  # R varie le plus vite
     grid = np.stack([r, gg, b], -1).reshape(-1, 3)
-    out = transform(grid, curve, look)
+    out = transform(grid, curve, L)
     with open(path, "w") as f:
         f.write(f'TITLE "{title}"\nLUT_3D_SIZE {SIZE}\nDOMAIN_MIN 0 0 0\nDOMAIN_MAX 1 1 1\n')
         np.savetxt(f, out, fmt="%.6f")
@@ -103,9 +128,7 @@ def write_cube(path, curve, look, title):
 def preview(img_path, out_path, curve="slog3"):
     from PIL import Image
     im = np.asarray(Image.open(img_path).convert("RGB")).astype(float) / 255
-    res = transform(im, curve, True)
-    neutral = transform(im, curve, False)
-    tiles = [im, neutral, res]
+    tiles = [im, transform(im, curve)] + [transform(im, curve, L) for L in LOOKS.values()]
     Image.fromarray((np.concatenate(tiles, 1) * 255 + 0.5).astype(np.uint8)).save(out_path, quality=90)
 
 
@@ -114,7 +137,8 @@ if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
     for curve, gamut in [("slog3", "SGamut3Cine"), ("slog2", "SGamut3")]:
         tag = "SLog3" if curve == "slog3" else "SLog2"
-        write_cube(f"{here}/{tag}_{gamut}_to_Rec709_LOOK.cube", curve, True, f"{tag} {gamut} -> Rec709 Look")
-        write_cube(f"{here}/{tag}_{gamut}_to_Rec709_NEUTRE.cube", curve, False, f"{tag} {gamut} -> Rec709 neutre")
+        write_cube(f"{here}/{tag}_{gamut}_to_Rec709_NEUTRE.cube", curve, None, f"{tag} {gamut} -> Rec709 neutre")
+        for name, L in LOOKS.items():
+            write_cube(f"{here}/{tag}_{gamut}_to_Rec709_{name}.cube", curve, L, f"{tag} {gamut} -> Rec709 {name}")
     if len(sys.argv) > 1:
-        preview(sys.argv[1], f"{here}/apercu_avant_neutre_look.jpg")
+        preview(sys.argv[1], f"{here}/apercu_log_neutre_doux_moody.jpg")
