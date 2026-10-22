@@ -19,10 +19,10 @@ GREEN = (0, 255, 0)
 HERE = Path(__file__).parent
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else HERE)
 
-LOGO_H = 540
-LX, RX, Y0 = 280, 800, 960
+LOGO_H = 460
+LX, RX, Y0 = 310, 800, 960
 CONTACT = 42          # image du choc
-GAP = 440             # écart entre les centres au contact
+GAP = 395             # écart entre les centres au contact
 
 
 def clamp(t):
