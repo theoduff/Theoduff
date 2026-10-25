@@ -20,6 +20,7 @@ Usage :
   (ENTREE = fichiers ou dossiers ; JPG, PNG, TIFF, HEIC et RAW acceptés)
 """
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -123,40 +124,54 @@ def correct_color(bgr, wb_strength, levels):
     sel = (L > 40) & (L < 220) & (chroma < 40)
     if sel.sum() > 1000:
         # Cible légèrement chaude : une scène de nuit 100 % neutre paraît froide et fausse.
-        a -= wb_strength * (float(np.median(a[sel])) - 1.0)
-        b -= wb_strength * (float(np.median(b[sel])) - 6.0)
+        # Correction atténuée dans les noirs pour qu'un ciel noir ne vire pas au bleu.
+        w = wb_strength * np.clip((L - 8) / 60, 0, 1)
+        a -= w * (float(np.median(a[sel])) - 1.0)
+        b -= w * (float(np.median(b[sel])) - 6.0)
 
     if levels:
         lo, hi = np.percentile(L, (0.5, 99.7))
         lo, hi = min(lo, 25), max(hi, 230)  # étirement doux : jamais d'écrêtage agressif
         L = np.clip((L - lo) * 255.0 / max(hi - lo, 1), 0, 255)
         # Légère remontée des ombres (courbe gamma sur les bas niveaux seulement).
-        L = 255 * np.power(L / 255, 0.92)
+        L = 255 * np.power(L / 255, 0.96)
 
     out = np.dstack([L, a + 128, b + 128]).clip(0, 255).astype(np.uint8)
     return cv2.cvtColor(out, cv2.COLOR_LAB2BGR)
 
 
 def denoise(bgr, strength):
+    """NL-means plus fort dans les ombres (là où le bruit se voit) que dans les zones claires,
+    pour garder la texture réelle (gouttes, gazon mouillé) dans les hautes lumières."""
     sigma = estimate_noise(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY))
-    h_lum = float(np.clip(sigma * 0.9 * strength, 2, 14))
-    h_col = float(np.clip(sigma * 1.6 * strength, 4, 22))
-    out = cv2.fastNlMeansDenoisingColored(bgr, None, h_lum, h_col, 7, 21)
-    return out, sigma, h_lum, h_col
+    h_lum = float(np.clip(sigma * 3.0 * strength, 5, 16))
+    h_col = float(np.clip(sigma * 4.0 * strength, 8, 24))
+    strong = cv2.fastNlMeansDenoisingColored(bgr, None, h_lum, h_col, 7, 21)
+    light = cv2.fastNlMeansDenoisingColored(bgr, None, h_lum * 0.45, h_col, 7, 21)
+    L = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)[..., 0].astype(np.float32)
+    dark = np.clip((140 - cv2.GaussianBlur(L, (0, 0), 3)) / 100, 0, 1)
+    return blend(strong, light, dark), sigma, h_lum, h_col
 
 
 def local_contrast(bgr, clip):
     lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
     tiles = max(4, round(max(bgr.shape[:2]) / 512))
-    L = cv2.createCLAHE(clip, (tiles, tiles)).apply(lab[..., 0])
-    lab[..., 0] = cv2.addWeighted(lab[..., 0], 0.5, L, 0.5, 0)
+    L0 = lab[..., 0]
+    L = cv2.createCLAHE(clip, (tiles, tiles)).apply(L0)
+    # Pas de contraste local dans les ombres : il y ferait ressortir le grain.
+    w = 0.5 * np.clip((cv2.GaussianBlur(L0, (0, 0), 3).astype(np.float32) - 50) / 80, 0, 1)
+    lab[..., 0] = (L0 * (1 - w) + L * w).round().astype(np.uint8)
     return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
 
 
 def sharpen(bgr, amount):
     radius = max(1.0, max(bgr.shape[:2]) / 3000)
     blur = cv2.GaussianBlur(bgr, (0, 0), radius)
-    return cv2.addWeighted(bgr, 1 + amount, blur, -amount, 0)
+    sharp = cv2.addWeighted(bgr, 1 + amount, blur, -amount, 0)
+    # Accentuation limitée aux vrais contours, pas aux zones planes (où il n'y a que du bruit).
+    g = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    edges = cv2.GaussianBlur(np.hypot(cv2.Sobel(g, -1, 1, 0), cv2.Sobel(g, -1, 0, 1)), (0, 0), 2)
+    return blend(sharp, bgr, np.clip((edges - 20) / 40, 0, 1))
 
 
 def blend(a, b, mask):
@@ -177,6 +192,7 @@ def process(path, out_dir, args):
         enhanced = sharpen(enhanced, args.sharpen)
 
     boxes = [] if args.no_faces else detect_faces(orig, args.face_score)
+    boxes += [tuple(b) for b in args.manual_faces.get(path.name, [])]
     mask = face_mask(orig.shape, boxes)
     protected = orig if args.faces_original else colored
     result = blend(protected, enhanced, mask) if boxes else enhanced
@@ -212,9 +228,13 @@ def main():
                    help="visages strictement d'origine (même pas de correction couleur)")
     p.add_argument("--no-faces", action="store_true", help="désactiver la protection des visages")
     p.add_argument("--face-score", type=float, default=0.6, help="seuil de détection des visages")
+    p.add_argument("--faces-file", type=Path,
+                   help='JSON {"photo.jpg": [[x, y, l, h], ...]} : visages à protéger en plus '
+                        "(utile pour les visages de profil que la détection rate)")
     p.add_argument("--quality", type=int, default=95)
     p.add_argument("--preview", action="store_true", help="générer des aperçus avant/après")
     args = p.parse_args()
+    args.manual_faces = json.loads(args.faces_file.read_text()) if args.faces_file else {}
 
     files = []
     for i in args.inputs:

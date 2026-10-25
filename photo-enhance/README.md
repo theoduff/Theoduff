@@ -10,6 +10,7 @@ python3 enhance.py /chemin/photos -o /chemin/sortie --preview
 Options utiles :
 - `--denoise 1.5` : débruitage plus fort (par défaut 1 = automatique, selon le bruit mesuré)
 - `--wb 0.4` : correction des blancs plus légère (de 0 à 1)
+- `--faces-file visages.json` : visages à protéger en plus, ex. `{"4.jpg": [[600, 580, 150, 190]]}` (pour les profils que la détection rate)
 - `--faces-original` : les visages ne reçoivent même pas la correction de couleur
 - `--preview` : crée des aperçus avant/après dans `sortie/apercus/`, avec les visages protégés encadrés
 
