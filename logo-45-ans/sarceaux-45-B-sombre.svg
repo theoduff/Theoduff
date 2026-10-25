@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+<defs><pattern id="p2" width="10" height="14" patternUnits="userSpaceOnUse"><rect width="10" height="9" fill="#F25C05"/></pattern></defs>
+<rect width="600" height="600" fill="#141414"/>
+<polygon points="300,122 283.5,99.3 300.0,52.0" fill="#C94A00"/><polygon points="300,122 300.0,52.0 316.5,99.3" fill="#F25C05"/><polygon points="300,122 316.5,99.3 366.6,100.4" fill="#C94A00"/><polygon points="300,122 366.6,100.4 326.6,130.7" fill="#F25C05"/><polygon points="300,122 326.6,130.7 341.1,178.6" fill="#C94A00"/><polygon points="300,122 341.1,178.6 300.0,150.0" fill="#F25C05"/><polygon points="300,122 300.0,150.0 258.9,178.6" fill="#C94A00"/><polygon points="300,122 258.9,178.6 273.4,130.7" fill="#F25C05"/><polygon points="300,122 273.4,130.7 233.4,100.4" fill="#C94A00"/><polygon points="300,122 233.4,100.4 283.5,99.3" fill="#F25C05"/>
+<text x="300" y="418" font-family="Inter Display" font-weight="900" font-size="280" letter-spacing="-2" text-anchor="middle" fill="url(#p2)">45</text>
+<text x="309" y="486" font-family="Inter Display" font-weight="800" font-size="46" letter-spacing="18" text-anchor="middle" fill="#F3EEE6">SARCEAUX</text>
+<line x1="130" y1="527" x2="180" y2="527" stroke="#F25C05" stroke-width="2"/>
+<line x1="420" y1="527" x2="470" y2="527" stroke="#F25C05" stroke-width="2"/>
+<text x="304" y="534" font-family="Inter Display" font-weight="600" font-size="20" letter-spacing="8" text-anchor="middle" fill="#F25C05">1982 — 2027</text>
+</svg>

@@ -1,66 +1,43 @@
 import math
-C=500
-O="#FF6A13"; O2="#E2540A"; D="#1C1C1E"; D2="#2C2C2F"; W="#FFFFFF"
-def pt(r,a): a=math.radians(a); return (C+r*math.cos(a), C+r*math.sin(a))
-def f(p): return f"{p[0]:.1f},{p[1]:.1f}"
-s=[]
-s.append('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">')
-s.append(f'''<defs>
-<linearGradient id="og" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8A3D"/><stop offset="1" stop-color="{O2}"/></linearGradient>
-<linearGradient id="dg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2A2A2E"/><stop offset="1" stop-color="#121214"/></linearGradient>
-<clipPath id="disc"><circle cx="{C}" cy="{C}" r="300"/></clipPath>
-<path id="top" d="M {C-372},{C} A 372 372 0 0 1 {C+372},{C}"/>
-<path id="bot" d="M {C-400},{C} A 400 400 0 0 0 {C+400},{C}"/>
-<filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.35"/></filter>
-</defs>''')
-# outer badge
-s.append(f'<circle cx="{C}" cy="{C}" r="480" fill="url(#dg)"/>')
-s.append(f'<circle cx="{C}" cy="{C}" r="462" fill="none" stroke="{O}" stroke-width="4"/>')
-s.append(f'<circle cx="{C}" cy="{C}" r="328" fill="none" stroke="{O}" stroke-width="4"/>')
-# arc text
-s.append(f'<text font-family="Inter Display" font-weight="900" font-size="92" fill="{W}" letter-spacing="14" text-anchor="middle"><textPath href="#top" startOffset="50%">SARCEAUX</textPath></text>')
-s.append(f'<text font-family="Inter Display" font-weight="700" font-size="44" fill="{O}" letter-spacing="12" text-anchor="middle"><textPath href="#bot" startOffset="50%">1982 — 2027</textPath></text>')
-# laurels: stem + curved leaves, bottom to top on each side
-for side in (1,-1):
-    a0,a1 = (128,204) if side==1 else (52,-24)
-    r=395
-    p0,p1=pt(r,a0),pt(r,a1)
-    sweep = 1 if side==1 else 0
-    s.append(f'<path d="M {f(p0)} A {r} {r} 0 0 {sweep} {f(p1)}" fill="none" stroke="{O}" stroke-width="4" stroke-linecap="round"/>')
-    n=9
-    for i in range(n):
-        a = a0 + (a1-a0)*(i+0.5)/n
-        cx,cy = pt(r,a)
-        t = a+90 if side==1 else a-90
-        sz = 46 - i*2.2
-        for off in (-34,34):
-            ang = math.radians(t+off)
-            tip=(cx+sz*math.cos(ang), cy+sz*math.sin(ang))
-            perp=ang+math.pi/2; w=sz*0.38
-            m=((cx+tip[0])/2,(cy+tip[1])/2)
-            c1=(m[0]+w*math.cos(perp), m[1]+w*math.sin(perp)); c2=(m[0]-w*math.cos(perp), m[1]-w*math.sin(perp))
-            col = O if off<0 else "#FF8A3D"
-            s.append(f'<path d="M {f((cx,cy))} Q {f(c1)} {f(tip)} Q {f(c2)} {f((cx,cy))} Z" fill="{col}"/>')
-# inner disc with modern stripes
-s.append(f'<circle cx="{C}" cy="{C}" r="300" fill="url(#og)"/>')
-s.append('<g clip-path="url(#disc)">')
-for k,y in enumerate(range(C-300, C+300, 40)):
-    s.append(f'<rect x="{C-300}" y="{y}" width="600" height="20" fill="#000" opacity="0.07"/>')
-s.append('</g>')
-# faceted star
-R,r=270,108
-outer=[pt(R,-90+72*k) for k in range(5)]
-inner=[pt(r,-90+36+72*k) for k in range(5)]
-s.append('<g filter="url(#sh)">')
-for k in range(5):
-    P=outer[k]; Ir=inner[k]; Il=inner[k-1]
-    s.append(f'<polygon points="{C},{C} {f(Il)} {f(P)}" fill="#3A3A3E"/>')
-    s.append(f'<polygon points="{C},{C} {f(P)} {f(Ir)}" fill="{D}"/>')
-s.append('</g>')
-# 45
-s.append(f'<text x="{C}" y="{C+55}" font-family="Inter Display" font-weight="900" font-size="190" fill="{W}" text-anchor="middle" letter-spacing="-8">45</text>')
-# ANS pill
-s.append(f'<rect x="{C-95}" y="{C+178}" width="190" height="62" rx="31" fill="{D}" stroke="{W}" stroke-width="3"/>')
-s.append(f'<text x="{C}" y="{C+223}" font-family="Inter Display" font-weight="800" font-size="40" fill="{W}" text-anchor="middle" letter-spacing="14">ANS</text>')
-s.append('</svg>')
-open('/home/user/Theoduff/logo-45-ans/sarceaux-45-ans.svg','w').write("\n".join(s))
+O="#F25C05"; O2="#C94A00"; K="#141414"; K2="#3A3A3A"; CR="#F3EEE6"
+def star(cx,cy,R,c1,c2,ratio=0.4):
+    r=R*ratio; out=[]
+    P=lambda rr,a:(cx+rr*math.cos(math.radians(a)),cy+rr*math.sin(math.radians(a)))
+    for k in range(5):
+        p=P(R,-90+72*k); il=P(r,-90-36+72*k); ir=P(r,-90+36+72*k)
+        f=lambda q:f"{q[0]:.1f},{q[1]:.1f}"
+        out.append(f'<polygon points="{cx},{cy} {f(il)} {f(p)}" fill="{c2}"/>')
+        out.append(f'<polygon points="{cx},{cy} {f(p)} {f(ir)}" fill="{c1}"/>')
+    return "".join(out)
+F='font-family="Inter Display"'
+def A(bg,num,txt,acc,sc1,sc2,pid):
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+<defs><pattern id="{pid}" width="10" height="14" patternUnits="userSpaceOnUse"><rect width="10" height="9" fill="{num}"/></pattern></defs>
+<rect width="600" height="600" fill="{bg}"/>
+{star(300,122,70,sc1,sc2)}
+<text x="300" y="418" {F} font-weight="900" font-size="280" letter-spacing="-2" text-anchor="middle" fill="url(#{pid})">45</text>
+<text x="309" y="486" {F} font-weight="800" font-size="46" letter-spacing="18" text-anchor="middle" fill="{txt}">SARCEAUX</text>
+<line x1="130" y1="527" x2="180" y2="527" stroke="{acc}" stroke-width="2"/>
+<line x1="420" y1="527" x2="470" y2="527" stroke="{acc}" stroke-width="2"/>
+<text x="304" y="534" {F} font-weight="600" font-size="20" letter-spacing="8" text-anchor="middle" fill="{acc}">1982 — 2027</text>
+</svg>'''
+def C():
+    stripes="".join(f'<rect x="100" y="{y}" width="400" height="13" fill="{O2}"/>' for y in range(105,500,26))
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+<defs><clipPath id="cd"><circle cx="300" cy="300" r="190"/></clipPath>
+<path id="tp" d="M 78,300 A 222,222 0 0 1 522,300"/><path id="bp" d="M 58,300 A 242,242 0 0 0 542,300"/></defs>
+<rect width="600" height="600" fill="{K}"/>
+<circle cx="300" cy="300" r="272" fill="none" stroke="{CR}" stroke-width="2"/>
+<text {F} font-weight="800" font-size="34" letter-spacing="14" text-anchor="middle" fill="{CR}"><textPath href="#tp" startOffset="50%">SARCEAUX</textPath></text>
+<text {F} font-weight="600" font-size="20" letter-spacing="8" text-anchor="middle" fill="{O}"><textPath href="#bp" startOffset="50%">1982 — 45 ANS — 2027</textPath></text>
+<circle cx="300" cy="300" r="190" fill="{O}"/>
+<g clip-path="url(#cd)">{stripes}</g>
+{star(300,272,128,K,K2)}
+<text x="300" y="462" {F} font-weight="900" font-size="64" letter-spacing="-2" text-anchor="middle" fill="{CR}">45</text>
+</svg>'''
+html=f'''<html><body style="margin:0;display:flex;gap:0;background:#000">
+{A(CR,O,K,O,K,K2,"p1")}{A(K,O,CR,O,O,O2,"p2")}{C()}</body></html>'''
+open('sheet.html','w').write(html)
+out="/home/user/Theoduff/logo-45-ans/"
+for name,svg in (("A-clair",A(CR,O,K,O,K,K2,"p1")),("B-sombre",A(K,O,CR,O,O,O2,"p2")),("C-sceau",C())):
+    open(out+f"sarceaux-45-{name}.svg","w").write(svg)
