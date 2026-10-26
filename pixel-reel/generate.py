@@ -1361,7 +1361,7 @@ if __name__ == "__main__":
     speeds = render()
     build_audio(speeds, AUDIO_TMP)
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", VIDEO_TMP, "-i", AUDIO_TMP,
-                    "-c:v", "copy", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=0.84", "-ar", "44100",
+                    "-c:v", "copy", "-af", "loudnorm=I=-16:TP=-3:LRA=11,alimiter=limit=0.7:level=false", "-ar", "44100",
                     "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
                     "-shortest", OUT], check=True)
     print(OUT)
