@@ -11,11 +11,11 @@ NOTCH_R = 46
 PURPLE = (42, 0, 52)
 DEEP = (24, 0, 30)
 
-SERIF_B = "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
-def font(name, size):
-    import subprocess
-    path = subprocess.check_output(["fc-match", "-f", "%{file}", name]).decode()
-    return ImageFont.truetype(path, size)
+import os
+FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "polices")
+TITLE_FONT = os.path.join(FONT_DIR, "GasoekOne-Regular.ttf")
+def font(style, size):
+    return ImageFont.truetype(os.path.join(FONT_DIR, f"Lexend-{style}.ttf"), size)
 
 def blank():
     return Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -126,7 +126,10 @@ layers.append(("Logo", "Halo logo", glow, 200))
 layers.append(("Logo", "Logo Winamax French Darts Festival", lg, 255))
 
 # --- TITRE ------------------------------------------------------------
-title_f = ImageFont.truetype(SERIF_B, 168)
+title_f = ImageFont.truetype(TITLE_FONT, 150)
+_tw = ImageDraw.Draw(blank()).textlength("GOLDEN TICKET", font=title_f) + 6 * 12
+if _tw > 1600:  # keep the title inside the frame
+    title_f = ImageFont.truetype(TITLE_FONT, int(150 * 1600 / _tw))
 ty = 505
 t_shape = text_layer("GOLDEN TICKET", title_f, STUB_X / 2, ty, (0, 0, 0, 255), spacing=6)
 shadow = Image.new("RGBA", (W, H), DEEP + (0,)); shadow.putalpha(t_shape.getchannel("A"))
@@ -151,8 +154,8 @@ d.regular_polygon((c + 470, oy, 8), 4, rotation=45, fill=PURPLE + (255,))
 layers.append(("Infos", "Ornement", orn, 255))
 
 # --- INFOS ------------------------------------------------------------
-date_f = font("Inter:style=Black", 74)
-lieu_f = font("Inter:style=SemiBold", 54)
+date_f = font("Black", 74)
+lieu_f = font("SemiBold", 54)
 layers.append(("Infos", "Date - 5 décembre 2025",
                text_layer("5 DÉCEMBRE 2025", date_f, c, 748, PURPLE + (255,), spacing=8), 255))
 layers.append(("Infos", "Lieu - Parc des Expositions Caen",
@@ -162,7 +165,7 @@ layers.append(("Infos", "Lieu - Parc des Expositions Caen",
 sc = (STUB_X + W - 35) / 2
 st = blank(); d = ImageDraw.Draw(st)
 vert = Image.new("RGBA", (H, W - STUB_X), (0, 0, 0, 0))
-vf = ImageFont.truetype(SERIF_B, 92)
+vf = ImageFont.truetype(TITLE_FONT, 72)
 vert_txt = text_layer("GOLDEN TICKET", vf, H / 2, 0, PURPLE + (255,), spacing=6)
 # render vertical text on its own canvas
 vcan = Image.new("RGBA", (H, 200), (0, 0, 0, 0)); vd = ImageDraw.Draw(vcan)
@@ -170,11 +173,11 @@ vd.text((H / 2, 100), "GOLDEN TICKET", font=vf, fill=PURPLE + (255,), anchor="mm
 vcan = vcan.rotate(90, expand=True)
 st.alpha_composite(vcan, (round(sc - 100 - 70), 0))
 layers.append(("Talon", "Talon - GOLDEN TICKET", st, 255))
-small = font("Inter:style=Bold", 40)
+small = font("Bold", 40)
 sd = blank(); d = ImageDraw.Draw(sd)
 vcan = Image.new("RGBA", (H, 140), (0, 0, 0, 0)); vd = ImageDraw.Draw(vcan)
 vd.text((H / 2, 40), "5.12.2025  ·  CAEN", font=small, fill=DEEP + (255,), anchor="mm")
-vd.text((H / 2, 100), "N° 0001", font=font("Inter:style=Black", 44), fill=DEEP + (255,), anchor="mm")
+vd.text((H / 2, 100), "N° 0001", font=font("Black", 44), fill=DEEP + (255,), anchor="mm")
 vcan = vcan.rotate(90, expand=True)
 sd.alpha_composite(vcan, (round(sc + 30), 0))
 layers.append(("Talon", "Talon - date + numéro", sd, 255))
