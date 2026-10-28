@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Carrousel French Darts Festival</title>
+<style>
+  :root {
+    --red: #E30613;
+    --red-dark: #A8000C;
+    --ink: #0B0B0D;
+    --panel: #1C1C21;
+    --white: #FFFFFF;
+    --muted: #9A9AA3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #333; font-family: "Inter", "Noto Color Emoji", sans-serif; }
+  .emoji { font-family: "Noto Color Emoji"; font-weight: 400; }
+
+  .slide {
+    position: relative; width: 1080px; height: 1350px; overflow: hidden;
+    background: radial-gradient(120% 80% at 50% 0%, #1a1a1f 0%, var(--ink) 60%);
+    color: var(--white); margin: 0 auto 40px;
+    display: flex; flex-direction: column; padding: 72px 80px;
+  }
+  /* Cible en filigrane */
+  .board { position: absolute; right: -260px; bottom: -260px; width: 820px; height: 820px; opacity: .13; pointer-events: none; }
+  .slide.cover .board { opacity: .14; right: -200px; bottom: -180px; }
+
+  .top { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
+  .brand { font-weight: 900; font-size: 26px; letter-spacing: .14em; text-transform: uppercase; }
+  .brand b { color: var(--red); }
+  .count { font-weight: 800; font-size: 24px; color: var(--muted); letter-spacing: .08em; }
+
+  /* COVER */
+  .cover .main { flex: 1; display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 2; }
+  .tag { display: inline-block; align-self: flex-start; background: var(--red); font-weight: 900; font-size: 28px;
+         letter-spacing: .12em; padding: 14px 24px; border-radius: 8px; margin-bottom: 44px; transform: rotate(-2deg); }
+  .title { font-family: "Inter Display", "Inter"; font-weight: 900; font-size: 104px; line-height: .98; letter-spacing: -.02em; text-transform: uppercase; }
+  .title .hl { color: var(--red); }
+  .title .strike { position: relative; display: inline-block; }
+  .sub { margin-top: 48px; font-size: 46px; font-weight: 600; font-style: italic; color: #D8D8DD; }
+  .swipe { position: relative; z-index: 2; display: flex; align-items: center; gap: 18px; font-weight: 800; font-size: 30px; letter-spacing: .1em; text-transform: uppercase; }
+  .swipe .arrow { width: 72px; height: 72px; border-radius: 50%; background: var(--white); color: var(--ink); display: grid; place-items: center; font-size: 40px; font-weight: 900; }
+
+  /* CHAT */
+  .label { position: relative; z-index: 2; margin-top: 56px; font-weight: 900; font-size: 30px; letter-spacing: .14em; color: var(--red); text-transform: uppercase; }
+  .chat { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 56px; }
+  .msg { max-width: 820px; display: flex; flex-direction: column; gap: 14px; }
+  .msg .who { font-weight: 800; font-size: 26px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 12px; }
+  .bubble { font-weight: 800; font-size: 54px; line-height: 1.16; padding: 40px 48px; border-radius: 44px; letter-spacing: -.01em; }
+  .me { align-self: flex-end; align-items: flex-end; }
+  .me .bubble { background: var(--red); border-bottom-right-radius: 10px; box-shadow: 0 20px 60px rgba(227,6,19,.35); }
+  .pote { align-self: flex-start; }
+  .pote .bubble { background: var(--panel); border: 2px solid #2E2E35; border-bottom-left-radius: 10px; font-weight: 700; color: #ECECF0; }
+  .pote.win .bubble { background: var(--white); color: var(--ink); border: none; font-weight: 900; font-size: 70px; text-transform: none; box-shadow: 0 20px 70px rgba(255,255,255,.2); }
+
+  /* Jauge */
+  .meter { position: relative; z-index: 2; }
+  .meter-head { display: flex; justify-content: space-between; font-weight: 800; font-size: 24px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 18px; }
+  .meter-head span:last-child { color: var(--white); }
+  .track { height: 26px; border-radius: 13px; background: #24242A; overflow: hidden; }
+  .fill { height: 100%; border-radius: 13px; background: linear-gradient(90deg, var(--red-dark), var(--red)); }
+</style>
+</head>
+<body>
+
+<!-- Cible réutilisable -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <g id="dartboard">
+      <circle cx="100" cy="100" r="98" fill="none" stroke="#fff" stroke-width="3"/>
+      <circle cx="100" cy="100" r="80" fill="none" stroke="#fff" stroke-width="8"/>
+      <circle cx="100" cy="100" r="60" fill="none" stroke="#fff" stroke-width="2"/>
+      <circle cx="100" cy="100" r="48" fill="none" stroke="#fff" stroke-width="8"/>
+      <circle cx="100" cy="100" r="16" fill="none" stroke="#fff" stroke-width="3"/>
+      <circle cx="100" cy="100" r="7" fill="#E30613"/>
+      <g stroke="#fff" stroke-width="1.5">
+        <line x1="100" y1="2" x2="100" y2="198"/><line x1="2" y1="100" x2="198" y2="100"/>
+        <line x1="30.7" y1="30.7" x2="169.3" y2="169.3"/><line x1="169.3" y1="30.7" x2="30.7" y2="169.3"/>
+        <line x1="62.5" y1="9.5" x2="137.5" y2="190.5"/><line x1="137.5" y1="9.5" x2="62.5" y2="190.5"/>
+        <line x1="9.5" y1="62.5" x2="190.5" y2="137.5"/><line x1="9.5" y1="137.5" x2="190.5" y2="62.5"/>
+      </g>
+    </g>
+  </defs>
+</svg>
+
+<!-- SLIDE 1 — COVER -->
+<section class="slide cover" id="s1">
+  <svg class="board" viewBox="0 0 200 200"><use href="#dartboard"/></svg>
+  <div class="top"><div class="brand"><b>Winamax</b> French Darts Festival</div><div class="count">1/4</div></div>
+  <div class="main">
+    <div class="tag"><span class="emoji">🎯</span> LE GUIDE</div>
+    <h1 class="title">Pour convaincre ton pote qui <span class="hl">n'aime pas</span> les fléchettes.</h1>
+    <p class="sub">(En 3 arguments, c'est plié.)</p>
+  </div>
+  <div class="swipe">Swipe <div class="arrow">→</div></div>
+</section>
+
+<!-- SLIDE 2 -->
+<section class="slide" id="s2">
+  <svg class="board" viewBox="0 0 200 200"><use href="#dartboard"/></svg>
+  <div class="top"><div class="brand"><b>Winamax</b> French Darts Festival</div><div class="count">2/4</div></div>
+  <div class="label">Argument n°1</div>
+  <div class="chat">
+    <div class="msg me"><div class="who"><span class="emoji">🗣️</span> Toi</div>
+      <div class="bubble">«&nbsp;Viens au WINAMAX French Darts Festival, c'est du sport&nbsp;!&nbsp;»</div></div>
+    <div class="msg pote"><div class="who"><span class="emoji">💬</span> Ton pote</div>
+      <div class="bubble">«&nbsp;Mouais… Regarder des gens lancer des fléchettes, bof.&nbsp;»</div></div>
+  </div>
+  <div class="meter"><div class="meter-head"><span>Niveau de conviction</span><span>10 %</span></div>
+    <div class="track"><div class="fill" style="width:10%"></div></div></div>
+</section>
+
+<!-- SLIDE 3 -->
+<section class="slide" id="s3">
+  <svg class="board" viewBox="0 0 200 200"><use href="#dartboard"/></svg>
+  <div class="top"><div class="brand"><b>Winamax</b> French Darts Festival</div><div class="count">3/4</div></div>
+  <div class="label">Argument n°2</div>
+  <div class="chat">
+    <div class="msg me"><div class="who"><span class="emoji">🗣️</span> Toi</div>
+      <div class="bubble">«&nbsp;Mais y'a une ambiance de dingue, de la musique, du show…&nbsp;»</div></div>
+    <div class="msg pote"><div class="who"><span class="emoji">💬</span> Ton pote</div>
+      <div class="bubble">«&nbsp;Hmm, continue, je t'écoute. <span class="emoji">👀</span>&nbsp;»</div></div>
+  </div>
+  <div class="meter"><div class="meter-head"><span>Niveau de conviction</span><span>55 %</span></div>
+    <div class="track"><div class="fill" style="width:55%"></div></div></div>
+</section>
+
+<!-- SLIDE 4 -->
+<section class="slide" id="s4">
+  <svg class="board" viewBox="0 0 200 200"><use href="#dartboard"/></svg>
+  <div class="top"><div class="brand"><b>Winamax</b> French Darts Festival</div><div class="count">4/4</div></div>
+  <div class="label">Argument n°3</div>
+  <div class="chat">
+    <div class="msg me"><div class="who"><span class="emoji">🗣️</span> Toi</div>
+      <div class="bubble">«&nbsp;Des milliers de personnes réunies pour faire la fête, avec les meilleurs joueurs de darts&nbsp;!&nbsp;»</div></div>
+    <div class="msg pote win"><div class="who"><span class="emoji">💬</span> Ton pote</div>
+      <div class="bubble">«&nbsp;OK,<br>T'AS LE&nbsp;LIEN&nbsp;?!&nbsp;<span class="emoji">🔥</span>&nbsp;»</div></div>
+  </div>
+  <div class="meter"><div class="meter-head"><span>Niveau de conviction</span><span><span class="emoji">🎯</span> 180 / 180</span></div>
+    <div class="track"><div class="fill" style="width:100%"></div></div></div>
+</section>
+
+</body>
+</html>
