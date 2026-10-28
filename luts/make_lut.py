@@ -30,14 +30,14 @@ def grade(rgb):
     x = x + mid * np.array([-0.03, 0.0, 0.035])
     return np.clip(x, 0, 1)
 
-def write_cube(path):
+def write_cube(path, fn=grade, title="Matin d'Hiver"):
     r = np.linspace(0, 1, N)
     # Ordre .cube : R varie le plus vite
     b, g, rr = np.meshgrid(r, r, r, indexing="ij")
     grid = np.stack([rr, g, b], -1).reshape(-1, 3)
-    out = grade(grid)
+    out = fn(grid)
     with open(path, "w") as f:
-        f.write('TITLE "Matin d\'Hiver"\n')
+        f.write(f'TITLE "{title}"\n')
         f.write("# Rec.709 in -> Rec.709 out. Images non-log, brumeuses/grises.\n")
         f.write(f"LUT_3D_SIZE {N}\nDOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n\n")
         for v in out:
