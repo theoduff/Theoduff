@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Contrat d'amitié décembre</title>
+<style>
+  :root {
+    --red: #E30613;
+    --red-ink: #C8101C;
+    --ink: #0B0B0D;
+    --paper: #F7F2E8;
+    --paper-line: #D9CFBD;
+    --text: #1D1B18;
+    --muted: #6E675C;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #333; font-family: "Inter", "Noto Color Emoji", sans-serif; }
+  .emoji { font-family: "Noto Color Emoji"; font-weight: 400; font-style: normal; }
+
+  .slide {
+    position: relative; width: 1080px; height: 1350px; overflow: hidden; margin: 0 auto 40px;
+    background: radial-gradient(110% 70% at 50% 0%, #1b1b20 0%, var(--ink) 65%);
+    color: #fff; display: flex; flex-direction: column; align-items: center; padding: 64px 70px 60px;
+  }
+  .top { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+  .brand { font-weight: 900; font-size: 24px; letter-spacing: .14em; text-transform: uppercase; }
+  .brand b { color: var(--red); }
+  .count { font-weight: 800; font-size: 22px; color: #9A9AA3; letter-spacing: .08em; }
+
+  .hook { margin-top: 38px; text-align: center; }
+  .hook .pill { display: inline-block; background: var(--red); font-weight: 900; font-size: 34px; letter-spacing: .04em;
+                padding: 16px 30px; border-radius: 999px; text-transform: uppercase; box-shadow: 0 14px 40px rgba(227,6,19,.4); }
+  .hook p { margin-top: 18px; font-size: 30px; font-weight: 600; color: #D8D8DD; }
+
+  /* La feuille */
+  .paper {
+    position: relative; flex: 1; width: 100%; margin-top: 40px;
+    background: var(--paper); color: var(--text); border-radius: 6px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.2);
+    padding: 64px 70px; display: flex; flex-direction: column; font-family: "Bitstream Charter", "Caladea", serif;
+    transform: rotate(-1.2deg);
+  }
+  .paper::before { /* double filet officiel */
+    content: ""; position: absolute; inset: 22px; border: 2px solid var(--paper-line); outline: 1px solid var(--paper-line); outline-offset: 6px; pointer-events: none;
+  }
+  .doc-head { text-align: center; font-family: "Inter"; font-weight: 800; font-size: 18px; letter-spacing: .32em; color: var(--muted); text-transform: uppercase; }
+  .doc-head .rule { width: 120px; height: 3px; background: var(--red); margin: 16px auto 0; }
+  .ref { font-family: "Courier 10 Pitch", "Liberation Mono", monospace; font-size: 22px; color: var(--muted); }
+
+  h2 { font-family: "Caladea", serif; font-weight: 700; font-size: 44px; margin: 34px 0 26px; letter-spacing: .01em; }
+  .art { margin-bottom: 0; }
+  .arts { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; }
+  .art h3 { font-family: "Inter"; font-weight: 900; font-size: 24px; letter-spacing: .16em; text-transform: uppercase; color: var(--red-ink); margin-bottom: 8px; }
+  .art p { font-size: 45px; line-height: 1.28; }
+  .art p.note { font-size: 31px; font-style: italic; color: var(--muted); margin-top: 6px; }
+  .body p { font-size: 38px; line-height: 1.34; }
+  .body:not(.arts) p { margin-bottom: 22px; }
+  .body .party { font-family: "Inter"; font-weight: 900; font-size: 24px; letter-spacing: .16em; color: var(--red-ink); text-transform: uppercase; margin-top: 6px; margin-bottom: 4px; }
+  .body b { font-weight: 700; }
+  .fill { font-family: "Courier 10 Pitch", monospace; border-bottom: 2px dotted var(--muted); padding: 0 6px; }
+
+  .foot { display: flex; justify-content: space-between; align-items: flex-end; font-family: "Courier 10 Pitch", monospace; font-size: 22px; color: var(--muted); border-top: 1px solid var(--paper-line); padding-top: 16px; }
+  /* Tampon */
+  .stamp { position: absolute; width: 270px; height: 270px; color: var(--red-ink); opacity: .9; mix-blend-mode: multiply; }
+  .stamp text { font-family: "Inter"; font-weight: 900; font-size: 15.5px; letter-spacing: 2.2px; fill: currentColor; }
+
+  .swipe { margin-top: 36px; display: flex; align-items: center; gap: 16px; font-weight: 800; font-size: 26px; letter-spacing: .1em; text-transform: uppercase; }
+  .swipe .arrow { width: 60px; height: 60px; border-radius: 50%; background: #fff; color: var(--ink); display: grid; place-items: center; font-size: 32px; font-weight: 900; }
+
+  /* Cover */
+  .cover .paper { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .cover .kicker { font-family: "Inter"; font-weight: 900; font-size: 22px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
+  .cover h1 { font-family: "Caladea", serif; font-weight: 700; font-size: 128px; line-height: .95; margin: 26px 0 18px; }
+  .cover .special { display: inline-block; font-family: "Inter"; font-weight: 900; font-size: 40px; letter-spacing: .12em; text-transform: uppercase;
+                    color: #fff; background: var(--red); padding: 10px 26px; transform: rotate(-2deg); }
+  .cover .between { margin-top: 44px; font-size: 32px; line-height: 1.4; color: var(--text); }
+  .cover .between em { color: var(--muted); }
+
+  /* Signatures */
+  .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }
+  .sig { border-top: 2px solid var(--text); padding-top: 14px; position: relative; height: 230px; }
+  .sig .who { font-family: "Inter"; font-weight: 900; font-size: 22px; letter-spacing: .14em; text-transform: uppercase; }
+  .sig .lu { font-style: italic; font-size: 26px; color: var(--muted); margin-top: 4px; }
+  .sig svg.scribble { position: absolute; left: 10px; top: -120px; width: 330px; height: 130px; }
+  .sig .here { position: absolute; left: 0; top: -96px; font-family: "Inter"; font-weight: 900; font-size: 30px; color: var(--red-ink); }
+  .cta { margin-top: 34px; text-align: center; }
+  .cta .pill { display: inline-block; background: #fff; color: var(--ink); font-weight: 900; font-size: 36px; padding: 18px 34px; border-radius: 999px; }
+  .cta p { margin-top: 16px; font-size: 28px; font-weight: 600; color: #D8D8DD; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.35"/><feComposite in="SourceGraphic" operator="in"/></filter>
+    <path id="ring" d="M135,135 m-104,0 a104,104 0 1,1 208,0 a104,104 0 1,1 -208,0"/>
+    <g id="stamp">
+      <g filter="url(#rough)">
+        <circle cx="135" cy="135" r="128" fill="none" stroke="currentColor" stroke-width="6"/>
+        <circle cx="135" cy="135" r="84" fill="none" stroke="currentColor" stroke-width="3"/>
+        <text font-family="Inter" font-weight="900" font-size="17" letter-spacing="2.4" fill="currentColor"><textPath href="#ring" startOffset="0">WINAMAX FRENCH DARTS FESTIVAL ★ 5 DÉCEMBRE ★</textPath></text>
+        <circle cx="135" cy="135" r="58" fill="none" stroke="currentColor" stroke-width="3"/>
+        <circle cx="135" cy="135" r="34" fill="none" stroke="currentColor" stroke-width="3"/>
+        <circle cx="135" cy="135" r="10" fill="currentColor"/>
+        <rect x="54" y="116" width="162" height="38" fill="var(--paper)" stroke="currentColor" stroke-width="4" transform="rotate(-8 135 135)"/>
+        <text x="135" y="141" text-anchor="middle" transform="rotate(-8 135 135)" font-family="Inter" font-weight="900" font-size="15" letter-spacing=".5" fill="currentColor">BON POUR LA FÊTE</text>
+      </g>
+    </g>
+  </defs>
+</svg>
+
+<!-- SLIDE 1 — COVER -->
+<section class="slide cover" id="s1">
+  <div class="top"><div class="brand"><b>Winamax</b> French Darts Festival</div><div class="count">1/5</div></div>
+  <div class="hook">
+    <div class="pill"><span class="emoji">📩</span> Envoie ça à ton pote</div>
+    <p>Il a jusqu'au 5 décembre pour signer.</p>
+  </div>
+  <div class="paper">
+    <div class="kicker">Document officiel*</div>
+    <h1>Contrat<br>d'amitié</h1>
+    <div class="special">Spécial décembre</div>
+    <p class="between">Entre <b>toi</b> et <b>ton pote</b>,<br><em>pour le WINAMAX French Darts Festival.</em></p>
+    <p class="ref" style="position:absolute;bottom:54px;left:0;right:0">*ou presque · Réf. WFDF-0512</p>
+    <svg class="stamp" style="right:44px;top:36px;width:215px;height:215px;transform:rotate(14deg)" viewBox="0 0 270 270"><use href="#stamp"/></svg>
+  </div>
+  <div class="swipe">Lis bien les clauses <div class="arrow">→</div></div>
+</section>
+
+<!-- SLIDE 2 — PARTIES -->
+<section class="slide" id="s2">
+  <div class="top"><div class="brand"><b>Winamax</b> French Darts Festival</div><div class="count">2/5</div></div>
+  <div class="paper">
+    <div class="doc-head">Contrat d'amitié · Spécial décembre<div class="rule"></div></div>
+    <h2>Entre les soussignés</h2>
+    <div class="body arts">
+      <div><p class="party">Partie n°1</p>
+      <p><b>Toi</b>, ci-après dénommé·e « l'Organisateur Motivé »,</p></div>
+      <div>
+      <p class="party">Partie n°2</p>
+      <p><b>Ton pote</b>, ci-après dénommé « Celui qui dit toujours “on verra” ».</p></div>
+      <div>
+      <p class="party">Objet du contrat</p>
+      <p>Les parties s'engagent à se rendre <b>ensemble</b> au <b>WINAMAX French Darts Festival</b>, le <b>5 décembre</b>, et à y vivre une soirée mémorable.</p></div>
+      <div><p class="party">Durée</p>
+      <p>Toute la soirée. Renouvelable chaque année par tacite reconduction.</p></div>
+      <p style="font-style:italic;color:var(--muted);font-size:28px">Le présent contrat est non négociable, non remboursable et très légèrement abusif.</p>
+    </div>
+    <div class="foot"><span>Paraphes : ____ / ____</span><span>Page 1/4</span></div>
+  </div>
+</section>
+
+<!-- SLIDE 3 — ARTICLES 1-3 -->
+<section class="slide" id="s3">
+  <div class="top"><div class="brand"><b>Winamax</b> French Darts Festival</div><div class="count">3/5</div></div>
+  <div class="paper">
+    <div class="doc-head">Contrat d'amitié · Spécial décembre<div class="rule"></div></div>
+    <h2>Obligations des parties</h2>
+    <div class="arts">
+    <div class="art"><h3>Article 1</h3><p>Ne pas abandonner le groupe avant la fin de la soirée.</p><p class="note">« Je rentre, je suis fatigué » est jugé irrecevable.</p></div>
+    <div class="art"><h3>Article 2</h3><p>Applaudir même quand on n'a rien compris.</p><p class="note">Surtout quand on n'a rien compris.</p></div>
+    <div class="art"><h3>Article 3</h3><p>Hurler « ONE HUNDRED AND EIGHTYYY&nbsp;! » à chaque 180.</p><p class="note">Et un peu aussi quand ce n'en est pas un.</p></div>
+    </div>
+    <div class="foot"><span>Paraphes : ____ / ____</span><span>Page 2/4</span></div>
+  </div>
+</section>
+
+<!-- SLIDE 4 — ARTICLES 4-6 -->
+<section class="slide" id="s4">
+  <div class="top"><div class="brand"><b>Winamax</b> French Darts Festival</div><div class="count">4/5</div></div>
+  <div class="paper">
+    <div class="doc-head">Contrat d'amitié · Spécial décembre<div class="rule"></div></div>
+    <h2>Clauses particulières</h2>
+    <div class="arts">
+    <div class="art"><h3>Article 4</h3><p>Ne jamais dire « moi aussi, je pourrais le faire&nbsp;».</p><p class="note">Non. Tu ne pourrais pas.</p></div>
+    <div class="art"><h3>Article 5</h3><p>Le premier qui dit « c'est juste un jeu de bar&nbsp;» paie la tournée.</p></div>
+    <div class="art"><h3>Article 6</h3><p>Le déguisement est fortement recommandé.</p><p class="note">Le ridicule est entièrement couvert par le présent contrat.</p></div>
+    </div>
+    <div class="foot"><span>Paraphes : ____ / ____</span><span>Page 3/4</span></div>
+  </div>
+</section>
+
+<!-- SLIDE 5 — SIGNATURES -->
+<section class="slide" id="s5">
+  <div class="top"><div class="brand"><b>Winamax</b> French Darts Festival</div><div class="count">5/5</div></div>
+  <div class="paper">
+    <div class="doc-head">Contrat d'amitié · Spécial décembre<div class="rule"></div></div>
+    <h2>Signatures</h2>
+    <div class="body">
+      <p>Fait pour valoir ce que de droit, en vue du <b>WINAMAX French Darts Festival</b> du 5 décembre.</p>
+      <p>Fait le <span class="fill">&nbsp;5&nbsp;</span> décembre, à la soirée de l'année.</p>
+    </div>
+    <div class="sigs" style="margin-top:150px">
+      <div class="sig">
+        <svg class="scribble" viewBox="0 0 330 130"><path d="M10,95 C30,20 55,20 50,80 C46,120 80,40 100,60 C115,75 105,100 125,85 C150,65 160,30 175,70 C185,95 200,60 220,72 C240,84 255,50 300,58 M60,105 L280,98" fill="none" stroke="#1E2A6E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="who">Toi</div><div class="lu">Lu et approuvé</div>
+      </div>
+      <div class="sig">
+        <div class="here">Signe ici <span class="emoji">✍️</span></div>
+        <div class="who">Ton pote</div><div class="lu">Lu et approuvé</div>
+      </div>
+    </div>
+    <p style="margin-top:20px;font-size:30px;font-style:italic;color:var(--muted);max-width:520px">Toute rupture du présent contrat sera sanctionnée par une tournée générale.</p>
+    <svg class="stamp" style="right:60px;bottom:44px;width:225px;height:225px;transform:rotate(-12deg)" viewBox="0 0 270 270"><use href="#stamp"/></svg>
+  </div>
+  <div class="cta">
+    <div class="pill"><span class="emoji">📩</span> Envoie-le à ton pote</div>
+    <p>Pas de signature = pas d'amitié. C'est la loi.</p>
+  </div>
+</section>
+
+</body>
+</html>
