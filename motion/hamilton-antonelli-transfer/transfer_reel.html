@@ -21,9 +21,9 @@ const ctx = cv.getContext('2d');
 const LINE_Y = 1080;
 const X0 = 90, XEND = 990;
 const NODES = {
-  ferrari:  { label: 'FERRARI',   sub: '2025',        x: 200 },
+  ferrari:  { label: 'FERRARI',   sub: '2025',        x: 880 },
   mercedes: { label: 'MERCEDES',  sub: '2013 — 2024', subAfter: '2025 →', x: 540 },
-  f2:       { label: 'FORMULE 2', sub: '2024',        x: 880 },
+  f2:       { label: 'FORMULE 2', sub: '2024',        x: 200 },
 };
 const AV_R = 68;          // avatar radius
 const STEM = 44;          // stem length between dot and avatar
@@ -166,7 +166,7 @@ function render(t) {
   // ---------- nodes ----------
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const order = ['ferrari', 'mercedes', 'f2'];
+  const order = ['f2', 'mercedes', 'ferrari'];
   order.forEach((k, i) => {
     const n = NODES[k];
     const appear = clamp((half - Math.abs(n.x - cx) + 60) / 60);
