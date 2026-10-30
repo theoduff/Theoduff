@@ -1,0 +1,224 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Antonelli Mexique Titre</title>
+<style>
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-ExtraLight.otf"); font-weight: 200; }
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-Medium.otf"); font-weight: 500; }
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-SemiBold.otf"); font-weight: 600; }
+  html, body { margin: 0; background: transparent; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+const W = 1080, H = 1920, FPS = 30, DURATION = 6.0;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// ---- layout ----
+const LINE_Y = 1080;
+const X0 = 90, XEND = 990;
+const N = 10;                         // positions shown: P1 .. P10
+const TARGET = 9;                     // P9 is enough for the title
+const posX = p => lerp(130, 950, (p - 1) / (N - 1));
+const AV_R = 68;
+const STEM = 44;
+const COUNTER_Y = 780;
+
+// ---- timing (seconds) ----
+const T = {
+  trackIn: [0.0, 0.9],
+  avatarIn: [0.05, 0.55],
+  counterIn: [0.2, 0.8],
+  run: [0.6, 2.9],                    // P1 -> P9
+  bracket: [3.1, 3.9],
+};
+
+// ---- easing ----
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, [a, b]) => clamp((t - a) / (b - a));
+const eOutCubic = t => 1 - Math.pow(1 - t, 3);
+const eInOutCubic = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const eOutExpo = t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+const eOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+const spring = (t, freq = 3.2, damp = 6) => 1 - Math.exp(-damp * t) * Math.cos(freq * 2 * Math.PI * t);
+
+const avatar = new Image();
+avatar.src = 'antonelli.png';
+
+const WHITE = a => `rgba(255,255,255,${a})`;
+
+function drawRing(x, y, p, maxR, alpha) {
+  if (p <= 0 || p >= 1) return;
+  const e = eOutCubic(p);
+  ctx.beginPath();
+  ctx.arc(x, y, lerp(4, maxR, e), 0, Math.PI * 2);
+  ctx.strokeStyle = WHITE(alpha * (1 - p));
+  ctx.lineWidth = lerp(2, 0.75, e);
+  ctx.stroke();
+}
+
+function render(t) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.lineCap = 'round';
+
+  // ---------- track ----------
+  const tr = eOutExpo(prog(t, T.trackIn));
+  const trackX = lerp(X0, XEND, tr);
+  ctx.beginPath();
+  ctx.moveTo(X0, LINE_Y); ctx.lineTo(trackX, LINE_Y);
+  ctx.strokeStyle = WHITE(0.28); ctx.lineWidth = 1.5; ctx.stroke();
+
+  // ---------- runner position: P1 -> P9 ----------
+  const r = eInOutCubic(prog(t, T.run));
+  const pFloat = lerp(1, TARGET, r);
+  const px = posX(pFloat);
+  const arrived = t >= T.run[1];
+  const landT = t - T.run[1];
+
+  // gauge (from P1)
+  if (px > posX(1) + 0.5) {
+    ctx.save();
+    ctx.shadowColor = WHITE(0.9); ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.moveTo(posX(1), LINE_Y); ctx.lineTo(px, LINE_Y);
+    ctx.strokeStyle = WHITE(1); ctx.lineWidth = 3; ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------- position ticks ----------
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let p = 1; p <= N; p++) {
+    const x = posX(p);
+    const appear = clamp((trackX - x + 60) / 60);
+    if (appear <= 0) continue;
+    const appearE = eOutCubic(clamp((t - (0.2 + p * 0.04)) / 0.5));
+    const passed = pFloat >= p - 0.001;
+    const isTarget = p === TARGET;
+    const lit = isTarget ? eOutCubic(clamp(landT / 0.25)) : 0;
+    const after = p > TARGET ? eOutCubic(clamp(landT / 0.4)) : 0;   // P10 dims once it's settled
+
+    const tickH = (isTarget ? lerp(8, 16, lit) : 7) * appear;
+    ctx.beginPath(); ctx.moveTo(x, LINE_Y - tickH); ctx.lineTo(x, LINE_Y + tickH);
+    ctx.strokeStyle = WHITE((passed ? 0.9 : 0.45) * appear * (1 - 0.6 * after));
+    ctx.lineWidth = isTarget ? lerp(1.5, 2.5, lit) : 1.5;
+    ctx.stroke();
+    if (lit > 0) {
+      ctx.beginPath(); ctx.arc(x, LINE_Y, 5 * lit, 0, Math.PI * 2);
+      ctx.fillStyle = WHITE(1); ctx.fill();
+    }
+
+    const ly = LINE_Y + 30 + (1 - appearE) * 10;
+    ctx.font = `${isTarget && lit > 0.5 ? 600 : 500} ${isTarget ? lerp(17, 22, lit) : 17}px InterL`;
+    ctx.letterSpacing = '2px';
+    const a = isTarget ? lerp(0.5, 1, lit) : (passed ? 0.8 : 0.45) * (1 - 0.6 * after);
+    ctx.fillStyle = WHITE(appearE * a);
+    ctx.fillText('P' + p, x + 1, ly);
+  }
+
+  // ---------- "champion" bracket P1..P9 ----------
+  const b = eInOutCubic(prog(t, T.bracket));
+  if (b > 0) {
+    const by = LINE_Y + 84, xa = posX(1), xb = posX(TARGET);
+    ctx.beginPath();
+    ctx.moveTo(xa, by - 10 * b); ctx.lineTo(xa, by);
+    ctx.lineTo(lerp(xa, xb, b), by);
+    if (b >= 1) ctx.lineTo(xb, by - 10);
+    ctx.strokeStyle = WHITE(0.8); ctx.lineWidth = 1.5; ctx.stroke();
+
+    const la = eOutCubic(clamp((t - T.bracket[1] + 0.3) / 0.5));
+    if (la > 0) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.font = '600 19px InterL'; ctx.letterSpacing = '6px';
+      ctx.fillStyle = WHITE(la);
+      ctx.fillText('CHAMPION DU MONDE', (xa + xb) / 2 + 3, by + 22 + (1 - la) * 8);
+    }
+  }
+
+  // ---------- rings on arrival ----------
+  drawRing(posX(TARGET), LINE_Y, prog(t, [T.run[1], T.run[1] + 0.8]), 70, 1.0);
+  drawRing(posX(TARGET), LINE_Y, prog(t, [T.run[1] + 0.1, T.run[1] + 1.0]), 110, 0.5);
+
+  // ---------- big counter: P1 -> P9 ----------
+  const cIn = eOutCubic(prog(t, T.counterIn));
+  if (cIn > 0) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.font = '600 15px InterL'; ctx.letterSpacing = '6px';
+    ctx.fillStyle = WHITE(0.75 * cIn);
+    ctx.fillText('GP DU MEXIQUE · CE WEEK-END', W / 2 + 3, COUNTER_Y - 150 + (1 - cIn) * 10);
+
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = '200 150px InterL'; ctx.letterSpacing = '0px';
+    ctx.fillStyle = WHITE(cIn);
+    ctx.fillText('P' + Math.round(pFloat), W / 2, COUNTER_Y + (1 - cIn) * 16);
+
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - 40 * cIn, COUNTER_Y + 30); ctx.lineTo(W / 2 + 40 * cIn, COUNTER_Y + 30);
+    ctx.strokeStyle = WHITE(0.5 * cIn); ctx.lineWidth = 1.5; ctx.stroke();
+
+    const sa = eOutCubic(clamp(landT / 0.5));
+    if (sa > 0) {
+      ctx.textBaseline = 'top';
+      ctx.font = '600 15px InterL'; ctx.letterSpacing = '6px';
+      ctx.fillStyle = WHITE(0.75 * sa);
+      ctx.fillText('SUFFIT POUR LE TITRE', W / 2 + 3, COUNTER_Y + 52 + (1 - sa) * 8);
+    }
+  }
+
+  // ---------- runner (dot + stem + avatar) ----------
+  const squash = arrived ? (1 - spring(clamp(landT / 0.7), 2.2, 6)) * -1.1 : 0;
+  const stem = STEM * (1 - 0.35 * squash);
+  const aIn = prog(t, T.avatarIn);
+  const aScale = aIn <= 0 ? 0 : eOutBack(aIn);
+
+  ctx.save();
+  ctx.shadowColor = WHITE(1); ctx.shadowBlur = 14;
+  ctx.beginPath(); ctx.arc(px, LINE_Y, 6 * clamp(aScale * 1.5, 0, 1), 0, Math.PI * 2);
+  ctx.fillStyle = WHITE(1); ctx.fill();
+  ctx.restore();
+
+  if (aScale > 0) {
+    const stemTop = LINE_Y - stem * aScale;
+    ctx.beginPath(); ctx.moveTo(px, LINE_Y - 6); ctx.lineTo(px, stemTop);
+    ctx.strokeStyle = WHITE(0.9); ctx.lineWidth = 1.5; ctx.stroke();
+
+    const sx = (1 + 0.08 * squash) * aScale, sy = (1 - 0.08 * squash) * aScale;
+    const cy = stemTop - AV_R * sy;
+    ctx.save();
+    ctx.translate(px, cy);
+    ctx.scale(sx, sy);
+    ctx.beginPath(); ctx.arc(0, 0, AV_R, 0, Math.PI * 2);
+    ctx.save(); ctx.clip();
+    ctx.drawImage(avatar, -AV_R, -AV_R, AV_R * 2, AV_R * 2);
+    ctx.restore();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = WHITE(1); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, AV_R + 8, 0, Math.PI * 2);
+    ctx.lineWidth = 1; ctx.strokeStyle = WHITE(0.35); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+window.ready = Promise.all([
+  new Promise(r => avatar.complete ? r() : (avatar.onload = r)),
+  document.fonts.load('200 150px InterL'),
+  document.fonts.load('500 17px InterL'),
+  document.fonts.load('600 19px InterL'),
+]);
+window.renderFrame = i => { render(i / FPS); return cv.toDataURL('image/png'); };
+window.META = { FPS, DURATION, W, H };
+
+// live preview when opened in a browser
+if (!navigator.webdriver) {
+  window.ready.then(() => {
+    const t0 = performance.now();
+    const loop = now => { render(((now - t0) / 1000) % (DURATION + 1)); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>
