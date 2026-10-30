@@ -1,0 +1,266 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Antonelli Timeline Reel</title>
+<style>
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-Medium.otf"); font-weight: 500; }
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-SemiBold.otf"); font-weight: 600; }
+  html, body { margin: 0; background: transparent; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+const W = 1080, H = 1920, FPS = 30, DURATION = 6.0;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// ---- layout ----
+const LINE_Y = 1080;
+const X0 = 90, XEND = 960;
+const STOPS = [
+  { key: 'F4', label: 'FORMULE 4', x: 315 },
+  { key: 'F3', label: 'FORMULE 3', x: 530 },
+  { key: 'F2', label: 'FORMULE 2', x: 745 },
+  { key: 'F1', label: 'FORMULE 1', x: XEND },
+];
+const AV_R = 68;          // avatar radius
+const STEM = 44;          // stem length between dot and avatar
+const JUMP_H = 300;       // apex height of the jump
+
+// ---- timing (seconds) ----
+const T = {
+  trackIn: [0.0, 0.9],
+  avatarIn: [0.05, 0.55],
+  gauge: [0.2, 3.0],         // arrive at F4 at exactly 3.0s
+  crouch: [3.0, 3.32],
+  jump: [3.32, 4.22],
+  land: [4.22, 4.75],
+};
+
+// ---- easing ----
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, [a, b]) => clamp((t - a) / (b - a));
+const eOutCubic = t => 1 - Math.pow(1 - t, 3);
+const eInOutCubic = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const eOutExpo = t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+const eInOutQuad = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const eOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+// damped spring 0 -> 1
+const spring = (t, freq = 3.2, damp = 6) => 1 - Math.exp(-damp * t) * Math.cos(freq * 2 * Math.PI * t);
+
+const avatar = new Image();
+avatar.src = 'avatar.png';
+
+const WHITE = a => `rgba(255,255,255,${a})`;
+
+function jumpPos(u) {
+  const a = STOPS[0].x, b = STOPS[2].x;
+  return { x: lerp(a, b, u), y: LINE_Y - JUMP_H * 4 * u * (1 - u) };
+}
+
+function drawRing(x, y, p, maxR, alpha) {
+  if (p <= 0 || p >= 1) return;
+  const e = eOutCubic(p);
+  ctx.beginPath();
+  ctx.arc(x, y, lerp(4, maxR, e), 0, Math.PI * 2);
+  ctx.strokeStyle = WHITE(alpha * (1 - p));
+  ctx.lineWidth = lerp(2, 0.75, e);
+  ctx.stroke();
+}
+
+function render(t) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.lineCap = 'round';
+
+  // ---------- track ----------
+  const tr = eOutExpo(prog(t, T.trackIn));
+  const trackX = lerp(X0, XEND, tr);
+  ctx.beginPath();
+  ctx.moveTo(X0, LINE_Y); ctx.lineTo(trackX, LINE_Y);
+  ctx.strokeStyle = WHITE(0.28);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // start cap
+  if (tr > 0) {
+    ctx.beginPath(); ctx.arc(X0, LINE_Y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = WHITE(0.5 * clamp(tr * 4)); ctx.fill();
+  }
+
+  // ---------- gauge (filled part) ----------
+  const g = eInOutCubic(prog(t, T.gauge));
+  const gaugeX = lerp(X0, STOPS[0].x, g);
+  if (g > 0) {
+    ctx.save();
+    ctx.shadowColor = WHITE(0.9); ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.moveTo(X0, LINE_Y); ctx.lineTo(gaugeX, LINE_Y);
+    ctx.strokeStyle = WHITE(1); ctx.lineWidth = 3; ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------- jump trail (dotted arc, persists) ----------
+  const jRaw = prog(t, T.jump);
+  const j = eInOutQuad(jRaw);
+  if (jRaw > 0) {
+    ctx.save();
+    ctx.beginPath();
+    const steps = 120;
+    for (let i = 0; i <= steps; i++) {
+      const u = (i / steps) * j;
+      const p = jumpPos(u);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.setLineDash([0.01, 9]);
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = WHITE(0.75);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------- stops: ticks + labels ----------
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  STOPS.forEach((s, i) => {
+    const appear = clamp((trackX - s.x + 60) / 60);
+    if (appear <= 0) return;
+    const appearE = eOutCubic(clamp((t - (0.25 + i * 0.09)) / 0.5));
+
+    let lit = 0, dim = 1, strike = 0;
+    if (s.key === 'F4') lit = eOutCubic(clamp((t - T.gauge[1]) / 0.25));
+    if (s.key === 'F2') lit = eOutCubic(clamp((t - T.land[0]) / 0.25));
+    if (s.key === 'F3') {
+      const k = eInOutCubic(clamp((t - 3.62) / 0.4));
+      dim = lerp(1, 0.35, k);
+      strike = k;
+    }
+
+    // tick
+    const tickH = lerp(8, 14, lit) * appear;
+    ctx.beginPath();
+    ctx.moveTo(s.x, LINE_Y - tickH); ctx.lineTo(s.x, LINE_Y + tickH);
+    ctx.strokeStyle = WHITE(lerp(0.45, 1, lit) * dim * appear);
+    ctx.lineWidth = lerp(1.5, 2.5, lit);
+    ctx.stroke();
+
+    // node dot when lit
+    if (lit > 0) {
+      ctx.beginPath(); ctx.arc(s.x, LINE_Y, 5 * lit, 0, Math.PI * 2);
+      ctx.fillStyle = WHITE(1); ctx.fill();
+    }
+
+    // label
+    const ly = LINE_Y + 34 + (1 - appearE) * 10;
+    ctx.font = `${lit > 0.5 ? 600 : 500} 19px InterL`;
+    ctx.letterSpacing = '4px';
+    const la = appearE * lerp(0.5, 1, lit) * dim;
+    ctx.fillStyle = WHITE(la);
+    ctx.fillText(s.label, s.x + 2, ly);  // +2.5 compensates trailing letter-spacing
+
+    // index number
+    ctx.font = '500 13px InterL';
+    ctx.letterSpacing = '3px';
+    ctx.fillStyle = WHITE(la * 0.6);
+    ctx.fillText(String(i + 1).padStart(2, '0'), s.x + 1.5, ly + 30);
+
+    // strike-through on F3
+    if (strike > 0) {
+      ctx.font = `500 19px InterL`; ctx.letterSpacing = '4px';
+      const w = ctx.measureText(s.label).width;
+      const sx = s.x - w / 2 - 6;
+      ctx.beginPath();
+      ctx.moveTo(sx, ly + 10); ctx.lineTo(lerp(sx, sx + w + 12, strike), ly + 10);
+      ctx.strokeStyle = WHITE(0.85); ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  });
+
+  // ---------- "skip" caption at apex ----------
+  const capP = eOutCubic(clamp((t - 3.8) / 0.5));
+  if (capP > 0) {
+    const ax = STOPS[1].x, ay = LINE_Y - JUMP_H + 52 + (1 - capP) * 8;
+    ctx.font = '500 14px InterL'; ctx.letterSpacing = '4px';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = WHITE(0.7 * capP);
+    ctx.fillText('SANS PASSER PAR LA F3', ax + 2, ay);
+    ctx.textBaseline = 'top';
+  }
+
+  // ---------- rings ----------
+  drawRing(STOPS[0].x, LINE_Y, prog(t, [3.0, 3.7]), 46, 0.9);
+  drawRing(STOPS[2].x, LINE_Y, prog(t, [4.22, 5.0]), 70, 1.0);
+  drawRing(STOPS[2].x, LINE_Y, prog(t, [4.32, 5.2]), 110, 0.5);
+
+  // ---------- runner (dot + stem + avatar) ----------
+  let px, py, squash = 0, stem = STEM;
+  if (t < T.jump[0]) {
+    px = gaugeX; py = LINE_Y;
+    const c = prog(t, T.crouch);
+    squash = Math.sin(c * Math.PI * 0.5) * (c < 1 ? 1 : 0); // crouch before take-off
+    if (t >= T.crouch[1]) squash = 1;
+  } else if (t < T.jump[1]) {
+    const p = jumpPos(j); px = p.x; py = p.y;
+    squash = -0.6 * Math.sin(jRaw * Math.PI);           // stretch in the air
+    if (jRaw < 0.12) squash = lerp(1, -0.3, jRaw / 0.12); // release
+  } else {
+    px = STOPS[2].x; py = LINE_Y;
+    const s = clamp((t - T.land[0]) / 0.7);
+    squash = (1 - spring(s, 2.2, 6)) * -1.1;             // impact squash settling
+  }
+  stem = STEM * (1 - 0.35 * squash);
+
+  const aIn = prog(t, T.avatarIn);
+  const aScale = aIn <= 0 ? 0 : eOutBack(aIn);
+
+  // anchor dot
+  ctx.save();
+  ctx.shadowColor = WHITE(1); ctx.shadowBlur = 14;
+  ctx.beginPath(); ctx.arc(px, py, 6 * clamp(aScale * 1.5, 0, 1), 0, Math.PI * 2);
+  ctx.fillStyle = WHITE(1); ctx.fill();
+  ctx.restore();
+
+  if (aScale > 0) {
+    // stem
+    const stemTop = py - stem * aScale;
+    ctx.beginPath(); ctx.moveTo(px, py - 6); ctx.lineTo(px, stemTop);
+    ctx.strokeStyle = WHITE(0.9); ctx.lineWidth = 1.5; ctx.stroke();
+
+    // avatar
+    const sx = (1 + 0.08 * squash) * aScale, sy = (1 - 0.08 * squash) * aScale;
+    const cy = stemTop - AV_R * sy;
+    ctx.save();
+    ctx.translate(px, cy);
+    ctx.scale(sx, sy);
+    ctx.beginPath(); ctx.arc(0, 0, AV_R, 0, Math.PI * 2);
+    ctx.save(); ctx.clip();
+    ctx.drawImage(avatar, -AV_R, -AV_R, AV_R * 2, AV_R * 2);
+    ctx.restore();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = WHITE(1); ctx.stroke();
+    // outer hairline ring
+    ctx.beginPath(); ctx.arc(0, 0, AV_R + 8, 0, Math.PI * 2);
+    ctx.lineWidth = 1; ctx.strokeStyle = WHITE(0.35); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+window.ready = Promise.all([
+  new Promise(r => avatar.complete ? r() : (avatar.onload = r)),
+  document.fonts.load('500 19px InterL'),
+  document.fonts.load('600 19px InterL'),
+]);
+window.renderFrame = i => { render(i / FPS); return cv.toDataURL('image/png'); };
+window.META = { FPS, DURATION, W, H };
+
+// live preview when opened in a browser
+if (!navigator.webdriver) {
+  window.ready.then(() => {
+    const t0 = performance.now();
+    const loop = now => { render(((now - t0) / 1000) % (DURATION + 1)); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>

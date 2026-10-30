@@ -251,7 +251,7 @@ window.ready = Promise.all([
   document.fonts.load('600 17px InterL'),
 ]);
 window.renderFrame = i => { render(i / FPS); return cv.toDataURL('image/png'); };
-window.META = { FPS, DURATION };
+window.META = { FPS, DURATION, W, H };
 
 // live preview when opened in a browser
 if (!navigator.webdriver) {

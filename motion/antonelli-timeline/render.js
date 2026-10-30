@@ -1,5 +1,5 @@
 // Renders timeline.html frame by frame to transparent PNGs, then encodes ProRes 4444 + alpha.
-// Usage: node render.js
+// Usage: node render.js [timeline.html|timeline_reel.html] [suffix]
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -7,15 +7,17 @@ const { execSync } = require('child_process');
 
 (async () => {
   const dir = __dirname;
-  const frames = path.join(dir, 'frames');
+  const html = process.argv[2] || 'timeline.html';
+  const suffix = process.argv[3] || '';
+  const frames = path.join(dir, 'frames' + suffix);
   fs.rmSync(frames, { recursive: true, force: true });
   fs.mkdirSync(frames);
 
   const browser = await chromium.launch({ args: ['--allow-file-access-from-files'] });
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-  await page.goto('file://' + path.join(dir, 'timeline.html'));
+  const page = await browser.newPage({ viewport: { width: 1920, height: 1920 } });
+  await page.goto('file://' + path.join(dir, html));
   await page.evaluate(() => window.ready);
-  const { FPS, DURATION } = await page.evaluate(() => window.META);
+  const { FPS, DURATION, W, H } = await page.evaluate(() => window.META);
   const total = Math.round(FPS * DURATION);
 
   for (let i = 0; i < total; i++) {
@@ -24,9 +26,9 @@ const { execSync } = require('child_process');
   }
   await browser.close();
 
-  const out = path.join(dir, 'antonelli_timeline_alpha.mov');
+  const out = path.join(dir, `antonelli_timeline${suffix}_alpha.mov`);
   execSync(`ffmpeg -y -loglevel error -framerate ${FPS} -i "${frames}/f_%04d.png" -c:v prores_ks -profile:v 4444 -pix_fmt yuva444p10le -alpha_bits 16 -vendor apl0 "${out}"`);
   // preview on a dark background (no alpha) for quick viewing
-  execSync(`ffmpeg -y -loglevel error -f lavfi -i color=c=0x15171c:s=1920x1080:r=${FPS} -framerate ${FPS} -i "${frames}/f_%04d.png" -filter_complex "[0][1]overlay=shortest=1,format=yuv420p" -c:v libx264 -crf 16 "${path.join(dir, 'preview.mp4')}"`);
+  execSync(`ffmpeg -y -loglevel error -f lavfi -i color=c=0x15171c:s=${W}x${H}:r=${FPS} -framerate ${FPS} -i "${frames}/f_%04d.png" -filter_complex "[0][1]overlay=shortest=1,format=yuv420p" -c:v libx264 -crf 16 "${path.join(dir, `preview${suffix}.mp4`)}"`);
   console.log('done', total, 'frames');
 })();
