@@ -1,0 +1,253 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hamilton Antonelli Transfer</title>
+<style>
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-Medium.otf"); font-weight: 500; }
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-SemiBold.otf"); font-weight: 600; }
+  html, body { margin: 0; background: transparent; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+const W = 1080, H = 1920, FPS = 30, DURATION = 6.0;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// ---- layout ----
+const LINE_Y = 1080;
+const X0 = 90, XEND = 990;
+const NODES = {
+  ferrari:  { label: 'FERRARI',   sub: '2025',        x: 200 },
+  mercedes: { label: 'MERCEDES',  sub: '2013 — 2024', subAfter: '2025 →', x: 540 },
+  f2:       { label: 'FORMULE 2', sub: '2024',        x: 880 },
+};
+const AV_R = 68;          // avatar radius
+const STEM = 44;          // stem length between dot and avatar
+const ARC_H = 260;        // apex height of the moves
+
+// ---- timing (seconds) ----
+const T = {
+  trackIn: [0.0, 0.9],
+  avatarsIn: [0.15, 0.65],
+  hamCrouch: [1.1, 1.35],
+  hamMove: [1.35, 2.25],    // Hamilton leaves the Mercedes seat for Ferrari
+  kimiCrouch: [2.05, 2.3],
+  kimiMove: [2.3, 3.2],     // Antonelli takes the seat
+};
+
+// ---- easing ----
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, [a, b]) => clamp((t - a) / (b - a));
+const eOutCubic = t => 1 - Math.pow(1 - t, 3);
+const eInOutCubic = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const eOutExpo = t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+const eInOutQuad = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const eOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+// damped spring 0 -> 1
+const spring = (t, freq = 3.2, damp = 6) => 1 - Math.exp(-damp * t) * Math.cos(freq * 2 * Math.PI * t);
+
+const imgHam = new Image(); imgHam.src = 'hamilton.png';
+const imgKimi = new Image(); imgKimi.src = 'antonelli.png';
+
+const WHITE = a => `rgba(255,255,255,${a})`;
+
+const arcPos = (a, b, u) => ({ x: lerp(a, b, u), y: LINE_Y - ARC_H * 4 * u * (1 - u) });
+
+function drawRing(x, y, p, maxR, alpha) {
+  if (p <= 0 || p >= 1) return;
+  const e = eOutCubic(p);
+  ctx.beginPath();
+  ctx.arc(x, y, lerp(4, maxR, e), 0, Math.PI * 2);
+  ctx.strokeStyle = WHITE(alpha * (1 - p));
+  ctx.lineWidth = lerp(2, 0.75, e);
+  ctx.stroke();
+}
+
+function drawTrail(a, b, u) {
+  if (u <= 0) return;
+  ctx.save();
+  ctx.beginPath();
+  const steps = 120;
+  for (let i = 0; i <= steps; i++) {
+    const p = arcPos(a, b, (i / steps) * u);
+    i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+  }
+  ctx.setLineDash([0.01, 9]);
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 2.4;
+  ctx.strokeStyle = WHITE(0.75);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// position + squash of a driver moving from node a to node b
+function driverState(t, a, b, crouch, move) {
+  const m = prog(t, move);
+  if (t < move[0]) {
+    const c = prog(t, crouch);
+    return { x: a, y: LINE_Y, squash: Math.sin(c * Math.PI * 0.5), u: 0 };
+  }
+  if (t < move[1]) {
+    const u = eInOutQuad(m);
+    const p = arcPos(a, b, u);
+    let squash = -0.6 * Math.sin(m * Math.PI);
+    if (m < 0.12) squash = lerp(1, -0.3, m / 0.12);
+    return { x: p.x, y: p.y, squash, u };
+  }
+  const s = clamp((t - move[1]) / 0.7);
+  return { x: b, y: LINE_Y, squash: (1 - spring(s, 2.2, 6)) * -1.1, u: 1 };
+}
+
+function drawDriver(img, name, st, scale, alpha) {
+  if (scale <= 0) return;
+  const { x, y, squash } = st;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  // anchor dot
+  ctx.save();
+  ctx.shadowColor = WHITE(1); ctx.shadowBlur = 14;
+  ctx.beginPath(); ctx.arc(x, y, 6 * clamp(scale * 1.5, 0, 1), 0, Math.PI * 2);
+  ctx.fillStyle = WHITE(1); ctx.fill();
+  ctx.restore();
+
+  // stem
+  const stem = STEM * (1 - 0.35 * squash);
+  const stemTop = y - stem * scale;
+  ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x, stemTop);
+  ctx.strokeStyle = WHITE(0.9); ctx.lineWidth = 1.5; ctx.stroke();
+
+  // avatar
+  const sx = (1 + 0.08 * squash) * scale, sy = (1 - 0.08 * squash) * scale;
+  const cy = stemTop - AV_R * sy;
+  ctx.save();
+  ctx.translate(x, cy);
+  ctx.scale(sx, sy);
+  ctx.beginPath(); ctx.arc(0, 0, AV_R, 0, Math.PI * 2);
+  ctx.save(); ctx.clip();
+  ctx.drawImage(img, -AV_R, -AV_R, AV_R * 2, AV_R * 2);
+  ctx.restore();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = WHITE(1); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, AV_R + 8, 0, Math.PI * 2);
+  ctx.lineWidth = 1; ctx.strokeStyle = WHITE(0.35); ctx.stroke();
+  ctx.restore();
+
+  // name tag above avatar
+  ctx.font = '600 15px InterL'; ctx.letterSpacing = '4px';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillStyle = WHITE(0.9 * clamp(scale));
+  ctx.fillText(name, x + 2, cy - (AV_R + 22) * sy);
+
+  ctx.restore();
+}
+
+function render(t) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.lineCap = 'round';
+
+  // ---------- track ----------
+  const tr = eOutExpo(prog(t, T.trackIn));
+  const cx = W / 2, half = (XEND - X0) / 2 * tr;
+  ctx.beginPath();
+  ctx.moveTo(cx - half, LINE_Y); ctx.lineTo(cx + half, LINE_Y);
+  ctx.strokeStyle = WHITE(0.28); ctx.lineWidth = 1.5; ctx.stroke();
+
+  // ---------- trails (persist) ----------
+  const ham = driverState(t, NODES.mercedes.x, NODES.ferrari.x, T.hamCrouch, T.hamMove);
+  const kimi = driverState(t, NODES.f2.x, NODES.mercedes.x, T.kimiCrouch, T.kimiMove);
+  drawTrail(NODES.mercedes.x, NODES.ferrari.x, ham.u);
+  drawTrail(NODES.f2.x, NODES.mercedes.x, kimi.u);
+
+  // ---------- nodes ----------
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const order = ['ferrari', 'mercedes', 'f2'];
+  order.forEach((k, i) => {
+    const n = NODES[k];
+    const appear = clamp((half - Math.abs(n.x - cx) + 60) / 60);
+    if (appear <= 0) return;
+    const appearE = eOutCubic(clamp((t - (0.25 + i * 0.09)) / 0.5));
+
+    let lit = 0;
+    if (k === 'mercedes') lit = 1;
+    if (k === 'ferrari') lit = eOutCubic(clamp((t - T.hamMove[1]) / 0.25));
+
+    const tickH = lerp(8, 14, lit) * appear;
+    ctx.beginPath();
+    ctx.moveTo(n.x, LINE_Y - tickH); ctx.lineTo(n.x, LINE_Y + tickH);
+    ctx.strokeStyle = WHITE(lerp(0.45, 1, lit) * appear);
+    ctx.lineWidth = lerp(1.5, 2.5, lit);
+    ctx.stroke();
+
+    const ly = LINE_Y + 34 + (1 - appearE) * 10;
+    ctx.font = `${lit > 0.5 ? 600 : 500} 19px InterL`;
+    ctx.letterSpacing = '4px';
+    const la = appearE * lerp(0.5, 1, lit);
+    ctx.fillStyle = WHITE(la);
+    ctx.fillText(n.label, n.x + 2, ly);
+
+    // sub-line (years); the Mercedes one flips when Antonelli lands
+    ctx.font = '500 14px InterL'; ctx.letterSpacing = '3px';
+    if (n.subAfter) {
+      const f = eInOutCubic(clamp((t - T.kimiMove[1]) / 0.4));
+      ctx.fillStyle = WHITE(la * 0.6 * (1 - f));
+      ctx.fillText(n.sub, n.x + 1.5, ly + 30 - f * 8);
+      ctx.fillStyle = WHITE(la * 0.8 * f);
+      ctx.fillText(n.subAfter, n.x + 1.5, ly + 38 - f * 8);
+    } else {
+      ctx.fillStyle = WHITE(la * 0.6);
+      ctx.fillText(n.sub, n.x + 1.5, ly + 30);
+    }
+  });
+
+  // ---------- empty seat (dashed circle) while the Mercedes seat is vacant ----------
+  const vacant = clamp((t - T.hamMove[0] - 0.15) / 0.3) * (1 - clamp((t - T.kimiMove[1] + 0.1) / 0.15));
+  if (vacant > 0) {
+    const sx = NODES.mercedes.x, sy = LINE_Y - STEM - AV_R;
+    ctx.save();
+    ctx.setLineDash([4, 7]);
+    ctx.beginPath(); ctx.arc(sx, sy, AV_R, 0, Math.PI * 2);
+    ctx.strokeStyle = WHITE(0.45 * vacant); ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.restore();
+    ctx.beginPath(); ctx.moveTo(sx, LINE_Y); ctx.lineTo(sx, LINE_Y - STEM);
+    ctx.strokeStyle = WHITE(0.3 * vacant); ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  // ---------- rings ----------
+  drawRing(NODES.ferrari.x, LINE_Y, prog(t, [T.hamMove[1], T.hamMove[1] + 0.7]), 50, 0.8);
+  drawRing(NODES.mercedes.x, LINE_Y, prog(t, [T.kimiMove[1], T.kimiMove[1] + 0.8]), 70, 1.0);
+  drawRing(NODES.mercedes.x, LINE_Y, prog(t, [T.kimiMove[1] + 0.1, T.kimiMove[1] + 1.0]), 110, 0.5);
+
+  // ---------- drivers ----------
+  const aIn = prog(t, T.avatarsIn);
+  const scale = aIn <= 0 ? 0 : eOutBack(aIn);
+  // Hamilton fades back slightly once he has left
+  const hamAlpha = lerp(1, 0.8, eInOutCubic(clamp((t - T.hamMove[1] - 0.6) / 0.6)));
+  drawDriver(imgHam, 'HAMILTON', ham, scale, hamAlpha);
+  drawDriver(imgKimi, 'ANTONELLI', kimi, scale, 1);
+}
+
+window.ready = Promise.all([
+  ...[imgHam, imgKimi].map(im => new Promise(r => im.complete ? r() : (im.onload = r))),
+  document.fonts.load('500 19px InterL'),
+  document.fonts.load('600 19px InterL'),
+]);
+window.renderFrame = i => { render(i / FPS); return cv.toDataURL('image/png'); };
+window.META = { FPS, DURATION, W, H };
+
+// live preview when opened in a browser
+if (!navigator.webdriver) {
+  window.ready.then(() => {
+    const t0 = performance.now();
+    const loop = now => { render(((now - t0) / 1000) % (DURATION + 1)); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>
