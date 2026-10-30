@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Age Premier Titre</title>
+<style>
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-ExtraLight.otf"); font-weight: 200; }
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-Medium.otf"); font-weight: 500; }
+  @font-face { font-family: "InterL"; src: url("file:///usr/share/fonts/opentype/inter/Inter-SemiBold.otf"); font-weight: 600; }
+  html, body { margin: 0; background: transparent; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+const W = 1080, H = 1920, FPS = 30, DURATION = 6.0;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// ---- data: age at first world title (years + days / 365) ----
+const DRIVERS = [
+  { name: 'VETTEL',     initials: 'SV', year: 2010, age: 23 + 134 / 365, stem: 44 },
+  { name: 'HAMILTON',   initials: 'LH', year: 2008, age: 23 + 300 / 365, stem: 220 },
+  { name: 'VERSTAPPEN', initials: 'MV', year: 2021, age: 24 + 73 / 365,  stem: 44 },
+];
+
+// ---- layout ----
+const LINE_Y = 1080;
+const X0 = 90, XEND = 990;
+const AGE_MIN = 22, AGE_MAX = 25;
+const ageX = a => lerp(130, 950, (a - AGE_MIN) / (AGE_MAX - AGE_MIN));
+const AV_R = 52;
+const TITLE_Y = 560;
+
+// ---- timing (seconds) ----
+const T = {
+  trackIn: [0.0, 0.9],
+  titleIn: [0.2, 0.8],
+  sweep: [0.5, 3.6],          // gauge sweeps 22 -> 25 years
+};
+
+// ---- easing ----
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, [a, b]) => clamp((t - a) / (b - a));
+const eOutCubic = t => 1 - Math.pow(1 - t, 3);
+const eInOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2;
+const eOutExpo = t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+const eOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+
+const WHITE = a => `rgba(255,255,255,${a})`;
+
+function drawRing(x, y, p, maxR, alpha) {
+  if (p <= 0 || p >= 1) return;
+  const e = eOutCubic(p);
+  ctx.beginPath();
+  ctx.arc(x, y, lerp(4, maxR, e), 0, Math.PI * 2);
+  ctx.strokeStyle = WHITE(alpha * (1 - p));
+  ctx.lineWidth = lerp(2, 0.75, e);
+  ctx.stroke();
+}
+
+// time at which the sweep reaches a given age (inverse of the eased sweep)
+function timeAtAge(a) {
+  const target = (a - AGE_MIN) / (AGE_MAX - AGE_MIN);
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; eInOutSine(m) < target ? lo = m : hi = m; }
+  return lerp(T.sweep[0], T.sweep[1], lo);
+}
+DRIVERS.forEach(d => d.hit = timeAtAge(d.age));
+
+function render(t) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.lineCap = 'round';
+
+  // ---------- title ----------
+  const ti = eOutCubic(prog(t, T.titleIn));
+  if (ti > 0) {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.font = '600 15px InterL'; ctx.letterSpacing = '6px';
+    ctx.fillStyle = WHITE(0.75 * ti);
+    ctx.fillText('ÂGE AU PREMIER TITRE', W / 2 + 3, TITLE_Y + (1 - ti) * 10);
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - 40 * ti, TITLE_Y + 24); ctx.lineTo(W / 2 + 40 * ti, TITLE_Y + 24);
+    ctx.strokeStyle = WHITE(0.5 * ti); ctx.lineWidth = 1.5; ctx.stroke();
+  }
+
+  // ---------- track ----------
+  const tr = eOutExpo(prog(t, T.trackIn));
+  const trackX = lerp(X0, XEND, tr);
+  ctx.beginPath();
+  ctx.moveTo(X0, LINE_Y); ctx.lineTo(trackX, LINE_Y);
+  ctx.strokeStyle = WHITE(0.28); ctx.lineWidth = 1.5; ctx.stroke();
+
+  // ---------- age ticks (years + half years) ----------
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let a = AGE_MIN; a <= AGE_MAX + 0.001; a += 0.5) {
+    const x = ageX(a);
+    const appear = clamp((trackX - x + 60) / 60);
+    if (appear <= 0) continue;
+    const major = Number.isInteger(a);
+    const h = (major ? 9 : 5) * appear;
+    ctx.beginPath(); ctx.moveTo(x, LINE_Y - h); ctx.lineTo(x, LINE_Y + h);
+    ctx.strokeStyle = WHITE((major ? 0.5 : 0.25) * appear); ctx.lineWidth = 1.5; ctx.stroke();
+    if (major) {
+      const ae = eOutCubic(clamp((t - (0.25 + (a - AGE_MIN) * 0.08)) / 0.5));
+      ctx.font = '500 17px InterL'; ctx.letterSpacing = '4px';
+      ctx.fillStyle = WHITE(0.6 * ae);
+      ctx.fillText(a + ' ANS', x + 2, LINE_Y + 30 + (1 - ae) * 10);
+    }
+  }
+
+  // ---------- gauge sweep ----------
+  const s = eInOutSine(prog(t, T.sweep));
+  const gx = ageX(lerp(AGE_MIN, AGE_MAX, s));
+  if (s > 0) {
+    ctx.save();
+    ctx.shadowColor = WHITE(0.9); ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.moveTo(ageX(AGE_MIN), LINE_Y); ctx.lineTo(gx, LINE_Y);
+    ctx.strokeStyle = WHITE(1); ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(gx, LINE_Y, s < 1 ? 5 : 0, 0, Math.PI * 2);
+    ctx.fillStyle = WHITE(1); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------- drivers pop up as the sweep reaches their age ----------
+  DRIVERS.forEach(d => {
+    const x = ageX(d.age);
+    const p = clamp((t - d.hit) / 0.6);
+    if (p <= 0) return;
+    drawRing(x, LINE_Y, clamp((t - d.hit) / 0.8), 60, 1.0);
+
+    // anchor dot
+    ctx.save();
+    ctx.shadowColor = WHITE(1); ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(x, LINE_Y, 6 * clamp(p * 3), 0, Math.PI * 2);
+    ctx.fillStyle = WHITE(1); ctx.fill();
+    ctx.restore();
+
+    // stem grows up
+    const sg = eOutCubic(clamp(p * 1.6));
+    const stemTop = LINE_Y - d.stem * sg;
+    ctx.beginPath(); ctx.moveTo(x, LINE_Y - 6); ctx.lineTo(x, stemTop);
+    ctx.strokeStyle = WHITE(0.9); ctx.lineWidth = 1.5; ctx.stroke();
+
+    // monogram avatar
+    const sc = eOutBack(clamp((p - 0.25) / 0.75));
+    if (sc > 0) {
+      const cy = stemTop - AV_R * sc;
+      ctx.save();
+      ctx.translate(x, cy); ctx.scale(sc, sc);
+      ctx.beginPath(); ctx.arc(0, 0, AV_R, 0, Math.PI * 2);
+      ctx.lineWidth = 2.5; ctx.strokeStyle = WHITE(1); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, AV_R + 8, 0, Math.PI * 2);
+      ctx.lineWidth = 1; ctx.strokeStyle = WHITE(0.35); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '200 40px InterL'; ctx.letterSpacing = '2px';
+      ctx.fillStyle = WHITE(1);
+      ctx.fillText(d.initials, 1, 2);
+      ctx.restore();
+
+      // name + year / age
+      const la = eOutCubic(clamp((t - d.hit - 0.3) / 0.4));
+      const top = cy - (AV_R + 20) * sc;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.font = '500 13px InterL'; ctx.letterSpacing = '3px';
+      ctx.fillStyle = WHITE(0.6 * la);
+      ctx.fillText(d.year + ' · ' + Math.floor(d.age) + ' ANS', x + 1.5, top + (1 - la) * 6);
+      ctx.font = '600 16px InterL'; ctx.letterSpacing = '4px';
+      ctx.fillStyle = WHITE(la);
+      ctx.fillText(d.name, x + 2, top - 22 + (1 - la) * 6);
+    }
+  });
+}
+
+window.ready = Promise.all([
+  document.fonts.load('200 40px InterL'),
+  document.fonts.load('500 17px InterL'),
+  document.fonts.load('600 16px InterL'),
+]);
+window.renderFrame = i => { render(i / FPS); return cv.toDataURL('image/png'); };
+window.META = { FPS, DURATION, W, H };
+
+// live preview when opened in a browser
+if (!navigator.webdriver) {
+  window.ready.then(() => {
+    const t0 = performance.now();
+    const loop = now => { render(((now - t0) / 1000) % (DURATION + 1)); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>
