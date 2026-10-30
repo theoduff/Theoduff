@@ -177,17 +177,6 @@ function render(t) {
     }
   });
 
-  // ---------- "skip" caption at apex ----------
-  const capP = eOutCubic(clamp((t - 3.8) / 0.5));
-  if (capP > 0) {
-    const ax = STOPS[1].x, ay = LINE_Y - JUMP_H + 52 + (1 - capP) * 8;
-    ctx.font = '500 13px InterL'; ctx.letterSpacing = '4px';
-    ctx.textBaseline = 'bottom';
-    ctx.fillStyle = WHITE(0.7 * capP);
-    ctx.fillText('SANS PASSER PAR LA F3', ax + 2, ay);
-    ctx.textBaseline = 'top';
-  }
-
   // ---------- rings ----------
   drawRing(STOPS[0].x, LINE_Y, prog(t, [3.0, 3.7]), 46, 0.9);
   drawRing(STOPS[2].x, LINE_Y, prog(t, [4.22, 5.0]), 70, 1.0);

@@ -28,6 +28,8 @@ const { execSync } = require('child_process');
 
   const out = path.join(dir, `antonelli_timeline${suffix}_alpha.mov`);
   execSync(`ffmpeg -y -loglevel error -framerate ${FPS} -i "${frames}/f_%04d.png" -c:v prores_ks -profile:v 4444 -pix_fmt yuva444p10le -alpha_bits 16 -vendor apl0 "${out}"`);
+  // QuickTime Animation (RGBA, lossless): most reliable alpha import in Premiere
+  execSync(`ffmpeg -y -loglevel error -framerate ${FPS} -i "${frames}/f_%04d.png" -c:v qtrle -pix_fmt argb "${path.join(dir, `antonelli_timeline${suffix}_alpha_animation.mov`)}"`);
   // preview on a dark background (no alpha) for quick viewing
   execSync(`ffmpeg -y -loglevel error -f lavfi -i color=c=0x15171c:s=${W}x${H}:r=${FPS} -framerate ${FPS} -i "${frames}/f_%04d.png" -filter_complex "[0][1]overlay=shortest=1,format=yuv420p" -c:v libx264 -crf 16 "${path.join(dir, `preview${suffix}.mp4`)}"`);
   console.log('done', total, 'frames');
