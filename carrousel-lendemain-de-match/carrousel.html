@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Carrousel lendemain de match</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0A1B45; --navy2:#122A63; --ink:#06102B;
+    --red:#E30613; --white:#FFFFFF; --cream:#F4F1EA;
+    --mute:rgba(255,255,255,.62); --line:rgba(255,255,255,.14);
+    --wa-bg:#0B141A; --wa-in:#202C33; --wa-out:#005C4B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#222;font-family:Inter,sans-serif;color:var(--white)}
+  .slide{width:1080px;height:1350px;position:relative;overflow:hidden;background:var(--navy);
+    padding:72px 80px;display:flex;flex-direction:column;margin:0 auto 40px}
+  .slide.light{background:var(--cream);color:var(--ink)}
+  .slide.red{background:var(--red)}
+  /* fond : lignes de terrain discrètes */
+  .slide::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 238px, var(--line) 239px, var(--line) 242px, transparent 243px),
+      linear-gradient(var(--line),var(--line)) 0 50%/100% 3px no-repeat;
+    opacity:.55}
+  .slide.light::before{--line:rgba(10,27,69,.07)}
+  .slide>*{position:relative;z-index:1}
+
+  .top{display:flex;justify-content:space-between;align-items:center;
+    font:700 22px/1 Inter;letter-spacing:.18em;text-transform:uppercase}
+  .top .tag{display:flex;align-items:center;gap:14px}
+  .top .tag i{width:14px;height:14px;border-radius:50%;background:var(--red);display:block}
+  .slide.red .top .tag i{background:var(--white)}
+  .top .num{font:400 30px/1 Anton;letter-spacing:.04em;opacity:.8}
+
+  .kicker{font:italic 400 44px/1.1 "Instrument Serif";color:var(--mute);margin-top:56px}
+  .slide.light .kicker{color:rgba(6,16,43,.6)}
+  h2{font:400 104px/.95 Anton;text-transform:uppercase;letter-spacing:.005em;margin-top:14px}
+  h2 em{font-style:normal;color:var(--red)}
+  .slide.red h2 em{color:var(--ink)}
+  .sub{font:italic 400 46px/1.18 "Instrument Serif";margin-top:30px;max-width:900px}
+  .sub b{font:600 38px/1 Inter;font-style:normal}
+  .visual{margin-top:auto}
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:44px;
+    font:600 22px/1 Inter;letter-spacing:.06em;color:var(--mute)}
+  .slide.light .foot{color:rgba(6,16,43,.55)}
+  .swipe{display:flex;align-items:center;gap:14px;color:var(--white);font-weight:700}
+  .slide.light .swipe{color:var(--ink)}
+  .swipe span{display:inline-block;width:64px;height:3px;background:currentColor;position:relative}
+  .swipe span::after{content:"";position:absolute;right:-2px;top:-8px;border:9px solid transparent;border-left:14px solid currentColor;border-right:0}
+
+  /* ---------- COVER ---------- */
+  .cover h1{font:400 200px/.88 Anton;text-transform:uppercase;letter-spacing:-.005em;margin-top:70px}
+  .cover .serif{font:italic 400 124px/1 "Instrument Serif";color:var(--white);margin:6px 0 0 6px}
+  .cover .serif em{color:var(--red)}
+  .cover .stamp{position:absolute;right:76px;top:150px;transform:rotate(8deg);
+    background:var(--red);padding:20px 30px;font:400 46px/1 Anton;letter-spacing:.04em;text-transform:uppercase;
+    box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  .cover .stamp small{display:block;font:600 20px/1 Inter;letter-spacing:.18em;margin-top:8px;opacity:.85}
+  .cover .lead{font:500 40px/1.3 Inter;margin-top:auto;max-width:820px}
+  .cover .lead b{font-weight:800}
+  .bigj{position:absolute;right:-40px;bottom:120px;font:400 520px/1 Anton;color:rgba(255,255,255,.045);z-index:0}
+
+  /* ---------- WHATSAPP ---------- */
+  .phone{background:var(--wa-bg);border-radius:44px;padding:0 0 26px;border:2px solid rgba(255,255,255,.08);
+    box-shadow:0 30px 60px rgba(0,0,0,.4);overflow:hidden}
+  .wa-head{background:#1F2C34;padding:24px 30px;display:flex;align-items:center;gap:20px}
+  .wa-av{width:64px;height:64px;border-radius:50%;background:var(--red);display:grid;place-items:center;font:400 30px Anton}
+  .wa-head b{font:600 30px/1.1 Inter;display:block}
+  .wa-head small{font:400 22px/1.3 Inter;color:#8696A0}
+  .wa-body{padding:26px 28px 0;display:flex;flex-direction:column;gap:14px}
+  .msg{max-width:78%;background:var(--wa-in);border-radius:18px;padding:14px 20px 12px;font:400 28px/1.3 Inter;align-self:flex-start}
+  .msg .who{font:600 22px/1 Inter;color:#F5A623;margin-bottom:6px;display:block}
+  .msg .who.b{color:#53BDEB}.msg .who.c{color:#25D366}
+  .msg .t{display:block;text-align:right;font:400 18px/1 Inter;color:#8696A0;margin-top:6px}
+  .msg.me{background:var(--wa-out);align-self:flex-end}
+  .voice{display:flex;align-items:center;gap:16px}
+  .voice .play{width:0;height:0;border:14px solid transparent;border-left:22px solid #D1D7DB;border-right:0}
+  .wave{display:flex;gap:4px;align-items:center;height:36px}
+  .wave i{width:5px;background:#8696A0;border-radius:3px;display:block}
+  .file{display:flex;gap:14px;align-items:center}
+  .file .ic{width:46px;height:56px;background:#E8574A;border-radius:6px;font:700 14px/56px Inter;text-align:center}
+
+  /* ---------- ESCALIERS ---------- */
+  .stairs-wrap{display:flex;gap:50px;align-items:flex-end}
+  .stairs{position:relative;width:520px;height:520px}
+  .stairs i{position:absolute;left:0;background:var(--white);display:block}
+  .stairs .guy{position:absolute;font-size:150px;line-height:1}
+  .gauges{flex:1;display:flex;flex-direction:column;gap:36px;padding-bottom:6px}
+  .g label{display:flex;justify-content:space-between;font:600 28px/1 Inter;letter-spacing:.04em;margin-bottom:10px}
+  .g .bar{height:22px;border-radius:11px;background:rgba(255,255,255,.12);overflow:hidden}
+  .g .bar span{display:block;height:100%;border-radius:11px;background:var(--red)}
+  .g .bar span.ok{background:#9FB3E0}
+
+  /* ---------- ARBITRE ---------- */
+  .var{background:var(--ink);border:3px solid var(--white);border-radius:18px;overflow:hidden}
+  .var-top{display:flex;justify-content:space-between;align-items:center;background:var(--white);color:var(--ink);
+    padding:16px 26px;font:400 34px/1 Anton;letter-spacing:.06em}
+  .var-top .rec{display:flex;align-items:center;gap:10px;color:var(--red);font:700 22px/1 Inter;letter-spacing:.1em}
+  .var-top .rec i{width:16px;height:16px;border-radius:50%;background:var(--red);display:block}
+  .var-screen{height:430px;position:relative;
+    background:repeating-linear-gradient(90deg,#2E7D32 0 90px,#348A38 90px 180px);filter:blur(.4px) saturate(.8)}
+  .var-screen .off{position:absolute;top:0;bottom:0;width:6px;background:#FFE14D;box-shadow:0 0 18px #FFE14D}
+  .var-screen .p{position:absolute;width:46px;height:46px;border-radius:50%;border:4px solid #fff}
+  .var-screen .car{position:absolute;left:0;top:0;width:200px;height:64px;background:linear-gradient(#5b6470,#3a414a);
+    border-radius:0 0 30px 0;opacity:.9}
+  .var-screen .blur{position:absolute;inset:0;background:radial-gradient(ellipse at 70% 40%,transparent 30%,rgba(0,0,0,.45))}
+  .var-screen .lbl{position:absolute;right:20px;bottom:18px;font:600 20px/1 Inter;background:rgba(0,0,0,.6);padding:8px 12px;border-radius:6px}
+  .var-bot{display:flex;justify-content:space-between;padding:18px 26px;font:600 24px/1 Inter;color:var(--mute)}
+  .var-bot b{color:var(--white)}
+  .wink{font:italic 400 36px/1.25 "Instrument Serif";color:var(--mute);margin-top:26px}
+  .wink b{font:700 28px/1 Inter;font-style:normal;color:var(--white)}
+
+  /* ---------- BUTEUR (light) ---------- */
+  .versions{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  .ver{border-radius:24px;padding:40px 34px 46px;background:var(--white);box-shadow:0 18px 40px rgba(10,27,69,.12)}
+  .ver.him{background:var(--navy);color:var(--white)}
+  .ver small{font:700 20px/1 Inter;letter-spacing:.16em;text-transform:uppercase;opacity:.6}
+  .ver p{font:400 64px/1 Anton;text-transform:uppercase;margin-top:16px}
+  .ver.him p{color:var(--white)}
+  .ver span{display:block;font:italic 400 32px/1.2 "Instrument Serif";margin-top:14px;opacity:.75}
+  .counter{display:flex;align-items:baseline;gap:22px;margin-top:30px;background:var(--red);color:var(--white);border-radius:24px;padding:24px 32px}
+  .counter b{font:400 160px/1 Anton}
+  .counter span{font:600 34px/1.25 Inter}
+
+  /* ---------- MAILLOTS ---------- */
+  .kits{display:grid;grid-template-columns:repeat(7,1fr);gap:18px}
+  .kit{aspect-ratio:1/1.05;position:relative;display:grid;place-items:center}
+  .kit svg{position:absolute;inset:0;width:100%;height:100%}
+  .kit b{position:relative;font:400 44px/1 Anton;color:var(--navy);margin-top:14px}
+  .kit.miss svg path{fill:none;stroke:var(--red);stroke-width:4;stroke-dasharray:10 8}
+  .kit.miss b{color:var(--red)}
+  .kits-cap{display:flex;justify-content:space-between;margin-top:26px;font:600 26px/1.2 Inter}
+  .kits-cap em{font:italic 400 34px/1 "Instrument Serif";color:var(--red)}
+
+  .prog{display:flex;gap:14px;margin-bottom:40px;flex-wrap:wrap}.prog span{border:2px solid rgba(10,27,69,.2);border-radius:999px;padding:14px 24px;font:600 26px/1 Inter}
+  .kits{gap:22px 18px}
+  /* ---------- COACH ---------- */
+  .notif{background:rgba(255,255,255,.96);color:var(--ink);border-radius:34px;padding:28px 32px;box-shadow:0 24px 50px rgba(0,0,0,.35)}
+  .notif .row{display:flex;justify-content:space-between;align-items:center;font:600 22px/1 Inter;color:#6b7385}
+  .notif .row span{display:flex;align-items:center;gap:12px}
+  .notif .row i{width:40px;height:40px;border-radius:10px;background:#25D366;display:block}
+  .notif h4{font:700 36px/1.2 Inter;margin-top:16px}
+  .notif p{font:400 34px/1.35 Inter;margin-top:6px}
+  .notif p b{font-weight:800;color:var(--red)}
+  .seen{display:flex;gap:24px;margin-top:26px}
+  .seen div{flex:1;border:2px solid var(--line);border-radius:22px;padding:22px 26px;background:rgba(255,255,255,.04)}
+  .seen b{font:400 110px/1 Anton;display:block}
+  .seen span{font:600 22px/1.2 Inter;color:var(--mute);letter-spacing:.04em}
+  .seen .zero b{color:var(--red)}
+
+  /* ---------- ARRÊTE (timeline) ---------- */
+  .tl{display:flex;flex-direction:column;gap:0;border-left:4px solid var(--white);margin-left:16px}
+  .tl .st{position:relative;padding:0 0 54px 52px}
+  .tl .st:last-child{padding-bottom:0}
+  .tl .st::before{content:"";position:absolute;left:-17px;top:4px;width:30px;height:30px;border-radius:50%;background:var(--white);border:5px solid var(--red)}
+  .tl .st.last::before{background:var(--red);border-color:var(--white)}
+  .tl small{font:700 26px/1 Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);opacity:.75}
+  .tl p{font:400 74px/1.05 Anton;text-transform:uppercase;margin-top:10px}
+  .tl p.q{font:italic 400 58px/1.1 "Instrument Serif";text-transform:none}
+
+  /* ---------- CTA ---------- */
+  .cta h2{font-size:178px;line-height:.88;margin-top:90px}
+  .cta .list{display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;margin-top:auto}
+  .cta .list div{border:2px solid var(--line);border-radius:999px;padding:22px 30px;font:600 30px/1.1 Inter;display:flex;gap:16px;align-items:center}
+  .cta .list div b{font:400 30px/1 Anton;color:var(--red)}
+  .cta .act{display:flex;gap:20px;margin-top:40px}
+  .cta .act div{flex:1;background:var(--white);color:var(--ink);border-radius:24px;padding:26px 30px;font:700 30px/1.2 Inter}
+  .cta .act div small{display:block;font:italic 400 30px/1.1 "Instrument Serif";color:rgba(6,16,43,.6);margin-top:6px}
+  .cta .act div.r{background:var(--red);color:var(--white)}
+  .cta .act div.r small{color:rgba(255,255,255,.8)}
+</style>
+</head>
+<body>
+
+<!-- 01 COVER -->
+<section class="slide cover" id="s1">
+  <div class="bigj">J+1</div>
+  <div class="top"><div class="tag"><i></i>Football amateur</div><div class="num">01/09</div></div>
+  <h1>Le<br>lendemain</h1>
+  <div class="serif">de match <em>en amateur</em></div>
+  <div class="stamp">Dimanche, 9h47<small>Courbatures : activées</small></div>
+  <p class="lead">Les personnages que <b>t'as forcément</b> dans ton équipe.</p>
+  <div class="foot"><span>On a tous joué avec eux.</span><span class="swipe">Glisse <span></span></span></div>
+</section>
+
+<!-- 02 WHATSAPP -->
+<section class="slide" id="s2">
+  <div class="top"><div class="tag"><i></i>Personnage n°1</div><div class="num">02/09</div></div>
+  <div class="kicker">Le consultant du</div>
+  <h2>groupe <em>WhatsApp</em></h2>
+  <p class="sub">Refait le match à 23h47. Avec un schéma. Et un vocal de 4 min 32.</p>
+  <div class="visual">
+    <div class="phone">
+      <div class="wa-head"><div class="wa-av">B</div><div><b>Séniors B ⚽ OFFICIEL</b><small>Kevin, Mehdi, Coach, Jordan, +14</small></div></div>
+      <div class="wa-body">
+        <div class="msg"><span class="who">Jordan</span>Les gars faut qu'on reparle de la 63e<span class="t">23:47</span></div>
+        <div class="msg"><span class="who">Jordan</span><div class="voice"><div class="play"></div><div class="wave" id="wave"></div><span style="font:400 22px Inter;color:#8696A0">4:32</span></div><span class="t">23:48</span></div>
+        <div class="msg"><span class="who">Jordan</span><div class="file"><div class="ic">JPG</div>schema_tactique_FINAL_v3.jpg</div><span class="t">23:51</span></div>
+        <div class="msg me">Frérot on a perdu 5-0<span class="t">23:58 ✓✓</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 ESCALIERS -->
+<section class="slide" id="s3">
+  <div class="top"><div class="tag"><i></i>Personnage n°2</div><div class="num">03/09</div></div>
+  <div class="kicker">Celui qui ne peut plus</div>
+  <h2>descendre les <em>escaliers</em></h2>
+  <p class="sub">De côté, une main sur la rampe, une marche à la fois. Il est entré à la 78e.</p>
+  <div class="visual stairs-wrap">
+    <div class="stairs" id="stairs"><div class="guy" style="left:30px;top:-6px">🧍</div></div>
+    <div class="gauges">
+      <div class="g"><label><span>Quadriceps</span><span>4 %</span></label><div class="bar"><span style="width:4%"></span></div></div>
+      <div class="g"><label><span>Ischios</span><span>11 %</span></label><div class="bar"><span style="width:11%"></span></div></div>
+      <div class="g"><label><span>Mollets</span><span>2 %</span></label><div class="bar"><span style="width:3%"></span></div></div>
+      <div class="g"><label><span>Envie de rejouer</span><span>100 %</span></label><div class="bar"><span class="ok" style="width:100%"></span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 ARBITRE -->
+<section class="slide" id="s4">
+  <div class="top"><div class="tag"><i></i>Personnage n°3</div><div class="num">04/09</div></div>
+  <div class="kicker">Celui qui accuse</div>
+  <h2>encore <em>l'arbitre</em></h2>
+  <p class="sub">« Hors-jeu de deux mètres. » Il a revu l'action 14 fois, filmée depuis le parking par la mère du gardien.</p>
+  <div class="visual">
+    <div class="var">
+      <div class="var-top"><span>Revisionnage n°14</span><span class="rec"><i></i>REC · 0,5x</span></div>
+      <div class="var-screen">
+        <div class="car"></div>
+        <div class="p" style="left:520px;top:200px;background:#C62828"></div>
+        <div class="p" style="left:560px;top:240px;background:#1565C0"></div>
+        <div class="off" style="left:548px"></div>
+        <div class="blur"></div>
+        <div class="lbl">VID_20261101_163412.mp4 · 240p</div>
+      </div>
+      <div class="var-bot"><span>Écart mesuré : <b>3 cm</b></span><span>Verdict de Jordan : <b>2 mètres</b></span></div>
+    </div>
+    <p class="wink">L'arbitre, lui, était bénévole. Il était bien placé. <b>Et il a eu raison.</b></p>
+  </div>
+</section>
+
+<!-- 05 BUTEUR -->
+<section class="slide light" id="s5">
+  <div class="top"><div class="tag"><i></i>Personnage n°4</div><div class="num">05/09</div></div>
+  <div class="kicker">Celui qui</div>
+  <h2>a <em>marqué</em></h2>
+  <p class="sub">Il raconte son but à la boulangère, au voisin, au repas de famille. Chaque fois un peu plus beau.</p>
+  <div class="visual">
+    <div class="versions">
+      <div class="ver"><small>Ce qui s'est passé</small><p>Contre sur le genou</p><span>Le ballon roule. Le gardien glisse.</span></div>
+      <div class="ver him"><small>Sa version</small><p>Reprise de volée</p><span>« Lucarne opposée, sans&nbsp;contrôle.&nbsp;»</span></div>
+    </div>
+    <div class="counter"><b>27</b><span>fois qu'il l'a raconté<br>avant midi</span></div>
+  </div>
+</section>
+
+<!-- 06 MAILLOTS -->
+<section class="slide light" id="s6">
+  <div class="top"><div class="tag"><i></i>Personnage n°5</div><div class="num">06/09</div></div>
+  <div class="kicker">Celui qui a ramené</div>
+  <h2>le sac des <em>maillots</em></h2>
+  <p class="sub">La machine tourne depuis 7h. Le salon sent le vestiaire. Et il manque toujours le n°9.</p>
+  <div class="visual">
+    <div class="prog"><span>Programme : coton 40°</span><span>Durée : 2h17</span><span>Odeur : persistante</span></div>
+    <div class="kits" id="kits"></div>
+    <div class="kits-cap"><span>13 maillots sur 14</span><em>Avis de recherche : le n°9</em></div>
+  </div>
+</section>
+
+<!-- 07 COACH -->
+<section class="slide" id="s7">
+  <div class="top"><div class="tag"><i></i>Personnage n°6</div><div class="num">07/09</div></div>
+  <div class="kicker">Le coach qui pense</div>
+  <h2>déjà à <em>dimanche prochain</em></h2>
+  <p class="sub">8h02 : la convocation est envoyée. Le match d'hier ? Déjà oublié. Enfin, presque.</p>
+  <div class="visual">
+    <div class="notif">
+      <div class="row"><span><i></i>WhatsApp · Séniors B ⚽ OFFICIEL</span><span>08:02</span></div>
+      <h4>Coach</h4>
+      <p>Entraînement mardi 19h. Présence <b>OBLIGATOIRE</b>. On ne prend plus 5 buts. Ceux qui ne viennent pas ne jouent pas.</p>
+    </div>
+    <div class="seen">
+      <div><b>18</b><span>VUS</span></div>
+      <div class="zero"><b>0</b><span>RÉPONSE</span></div>
+      <div><b>1</b><span>POUCE 👍<br>DU GARDIEN</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 08 ARRETE -->
+<section class="slide red" id="s8">
+  <div class="top"><div class="tag"><i></i>Personnage n°7</div><div class="num">08/09</div></div>
+  <div class="kicker" style="color:rgba(255,255,255,.8)">Celui qui</div>
+  <h2>arrête le foot <em>(encore)</em></h2>
+  <p class="sub">Chaque lendemain de match, il prend sa retraite. Elle dure en moyenne 48 heures.</p>
+  <div class="visual tl">
+    <div class="st"><small>Dimanche · 10h15</small><p class="q">« J'ai plus l'âge. J'arrête. »</p></div>
+    <div class="st"><small>Lundi · 21h40</small><p class="q">« Bon… on joue contre qui dimanche&nbsp;?&nbsp;»</p></div>
+    <div class="st last"><small>Mardi · 18h58</small><p>Premier au vestiaire.</p></div>
+  </div>
+</section>
+
+<!-- 09 CTA -->
+<section class="slide cta" id="s9">
+  <div class="top"><div class="tag"><i></i>Football amateur</div><div class="num">09/09</div></div>
+  <h2>Et toi,<br>t'es <em>lequel ?</em></h2>
+  <p class="sub">Tout le monde a été au moins une fois l'un d'eux. Et certains, les sept dans le même week-end.</p>
+  <div class="list">
+    <div><b>1</b>Le consultant WhatsApp</div>
+    <div><b>2</b>L'escalier de côté</div>
+    <div><b>3</b>L'anti-arbitre</div>
+    <div><b>4</b>Le buteur conteur</div>
+    <div><b>5</b>Le sac des maillots</div>
+    <div><b>6</b>Le coach à 8h02</div>
+    <div style="grid-column:1/3"><b>7</b>Le retraité de 48 heures</div>
+  </div>
+  <div class="act">
+    <div class="r">Identifie ton coéquipier 👇<small>Il se reconnaîtra.</small></div>
+    <div>Enregistre ce post<small>Pour dimanche prochain.</small></div>
+  </div>
+</section>
+
+<script>
+  // vocal waveform
+  const w=document.getElementById('wave');
+  [10,18,26,14,30,22,12,34,20,28,16,24,32,12,20,30,14,26,18,10,22,28,16,12].forEach(h=>{const i=document.createElement('i');i.style.height=h+'px';w.appendChild(i)});
+  // stairs (descend left -> right)
+  const s=document.getElementById('stairs');const n=6,sw=520/n,sh=430/n;
+  for(let k=0;k<n;k++){const i=document.createElement('i');i.style.left=(k*sw)+'px';i.style.top=(k*sh+90)+'px';i.style.width=(sw+2)+'px';i.style.height=(430-k*sh)+'px';i.style.opacity=(1-k*0.11);s.appendChild(i)}
+  s.querySelector('.guy').style.top='-70px';
+  // kits
+  const kits=document.getElementById('kits');
+  const shirt='<svg viewBox="0 0 100 105"><path d="M30 6 L12 14 L2 38 L18 44 L22 34 L22 100 L78 100 L78 34 L82 44 L98 38 L88 14 L70 6 Q50 22 30 6 Z" fill="#FFFFFF" stroke="#0A1B45" stroke-width="3" stroke-linejoin="round"/></svg>';
+  for(let k=1;k<=14;k++){const d=document.createElement('div');d.className='kit'+(k===9?' miss':'');d.innerHTML=shirt+'<b>'+(k===9?'?':k)+'</b>';kits.appendChild(d)}
+</script>
+</body>
+</html>
