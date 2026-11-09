@@ -2,74 +2,41 @@
 <html>
 <head>
 <meta charset="utf-8">
+<!-- Style "feutre" : silhouette blanche, contour noir, ombre grise, lueurs bleues. Aucun texte. -->
 <style>
   html, body { margin: 0; padding: 0; background: transparent; }
   body.preview { background: #6b7f8c; }
   svg { display: block; }
-  .lbl { font-family: 'Inter'; font-weight: 800; font-size: 25px; letter-spacing: 2.5px; fill: #fff; }
-  .cap1 { font-family: 'Inter'; font-weight: 800; font-size: 50px; letter-spacing: 1px; fill: #fff; }
-  .cap2 { font-family: 'Caladea'; font-style: italic; font-size: 50px; fill: #fff; }
-  .capsub { font-family: 'Inter'; font-weight: 500; font-size: 23px; letter-spacing: 0.5px; fill: #fff; opacity: .82; }
-  .tl { font-family: 'Inter'; font-weight: 700; font-size: 20px; letter-spacing: 1.6px; fill: #fff; }
-  .num { font-family: 'Inter'; font-weight: 800; font-size: 26px; fill: #0b1620; }
 </style>
 </head>
 <body>
-<svg id="svg" xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<svg id="svg" xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="55 160 970 970">
   <defs>
-    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="16"/>
+    <!-- léger tremblé de feutre -->
+    <filter id="marker" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
-    <filter id="glowSoft" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="6"/>
-    </filter>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.55"/>
-    </filter>
-    <filter id="textGlow" x="-30%" y="-80%" width="160%" height="260%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="b"/>
-      <feFlood flood-color="#2ea8ff" result="c"/>
-      <feComposite in="c" in2="b" operator="in" result="g"/>
-      <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <radialGradient id="core" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#e6f7ff"/>
-      <stop offset="45%" stop-color="#6cd0ff"/>
-      <stop offset="100%" stop-color="#1e8cff"/>
-    </radialGradient>
-    <mask id="maskFar" maskUnits="userSpaceOnUse" x="0" y="0" width="1080" height="1080"><rect width="1080" height="1080" fill="#fff"/><g id="maskFarShapes" fill="#000"></g></mask>
-    <mask id="maskBody" maskUnits="userSpaceOnUse" x="0" y="0" width="1080" height="1080"><rect width="1080" height="1080" fill="#fff"/><g id="maskBodyShapes" fill="#000"></g></mask>
-    <mask id="maskNear" maskUnits="userSpaceOnUse" x="0" y="0" width="1080" height="1080"><rect width="1080" height="1080" fill="#fff"/><g id="maskNearShapes" fill="#000"></g></mask>
-    <clipPath id="clipNearThigh"><path id="clipNearThighPath"/></clipPath>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="16"/></filter>
+    <filter id="glowSoft" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="aura" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="24"/></filter>
+    <clipPath id="clipFar"></clipPath>
+    <clipPath id="clipMain"></clipPath>
+    <clipPath id="clipArm"></clipPath>
   </defs>
-
   <g id="root">
-    <g id="machine" filter="url(#shadow)" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"></g>
-    <g id="arrow"></g>
-    <!-- far leg (behind) -->
-    <g id="farLeg" opacity="0.55">
-      <g id="farFill" fill="#0c141c" fill-opacity="0.72"></g>
-      <g id="farOutline" fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round" mask="url(#maskFar)"></g>
-      <g id="farMuscles"></g>
-    </g>
-    <!-- torso / head / arm -->
-    <g id="body">
-      <g id="bodyFill" fill="#0c141c" fill-opacity="0.72"></g>
-      <g id="glute"></g>
-      <g id="bodyOutline" fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round" mask="url(#maskBody)" filter="url(#shadow)"></g>
-    </g>
-    <!-- near (working) leg -->
-    <g id="nearLeg">
-      <g id="nearFill" fill="#0c141c" fill-opacity="0.72"></g>
-      <g id="nearMuscles"></g>
-      <g id="nearOutline" fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round" mask="url(#maskNear)" filter="url(#shadow)"></g>
-    </g>
-    <g id="labels"></g>
-    <g id="caption"></g>
-    <g id="timeline"></g>
+    <g id="ground"></g>
+    <g id="machineBack"></g>
+    <g id="aura"></g>
+    <g id="far" filter="url(#marker)"></g>
+    <g id="farGlow" clip-path="url(#clipFar)"></g>
+    <g id="main" filter="url(#marker)"></g>
+    <g id="mainGlow" clip-path="url(#clipMain)"></g>
+    <g id="arm" filter="url(#marker)"></g>
+    <g id="machineFront"></g>
+    <g id="motion"></g>
   </g>
 </svg>
-
 <script>
 // ---------- helpers ----------
 const V = (x, y) => ({x, y});
@@ -189,289 +156,156 @@ function act(t) {
   return out;
 }
 
-// ---------- leg pose ----------
+
+// ---------- sketch style ----------
+const INK = '#1a1a1a', GREY = '#b9b9b9', W = 8;      // contour noir, ombre grise
+const SH = V(-18, -15);                                  // décalage de la partie blanche -> ombre grise en bas/droite
+
 function legPose(hip, ankleTarget, footAngle) {
   const knee = ik(hip, ankleTarget, L_TH, L_SH, -1);
   const ankle = add(knee, mul(norm(sub(ankleTarget, knee)), Math.min(L_SH, len(sub(ankleTarget, knee)))));
   return { hip, knee, ankle, footAngle };
 }
+// pied effilé, en pointe (style croquis)
 function footPath(ankle, ang) {
-  // ang: direction of the sole (heel -> toe). foot normal points "out" of the sole towards ankle
   const s = V(Math.cos(ang), Math.sin(ang));
-  const n = V(-s.y, s.x); // from ankle towards the sole
-  const sole = add(ankle, mul(n, 24));          // sole centre under ankle
-  const heel = add(sole, mul(s, -22));
-  const toe = add(sole, mul(s, 66));
-  const toeTop = add(toe, mul(n, -20));
-  const instep = add(add(ankle, mul(s, 22)), mul(n, -8));
-  const back = add(add(ankle, mul(s, -14)), mul(n, 2));
-  return `M${P(heel)} L${P(toe)} Q${P(add(toe, mul(n, -12)))} ${P(toeTop)} L${P(instep)} Q${P(add(ankle, mul(n, -12)))} ${P(back)} Q${P(add(heel, mul(n, -4)))} ${P(heel)} Z`;
+  const n = V(-s.y, s.x);                        // de la cheville vers la semelle
+  const heel = add(add(ankle, mul(n, 22)), mul(s, -16));
+  const toe = add(add(ankle, mul(n, 20)), mul(s, 62));
+  const top = add(add(ankle, mul(n, -6)), mul(s, 10));
+  const back = add(add(ankle, mul(n, -4)), mul(s, -12));
+  return `M${P(back)} Q${P(add(heel, mul(s, -6)))} ${P(heel)} L${P(toe)} Q${P(add(top, mul(s, 26)))} ${P(top)} Z`;
 }
 function legShapes(p) {
-  return [
-    capsule(p.hip, p.knee, 44, 29),
-    capsule(p.knee, p.ankle, 28, 15),
-    footPath(p.ankle, p.footAngle),
-  ];
+  return [capsule(p.hip, p.knee, 42, 26), capsule(p.knee, p.ankle, 25, 11), footPath(p.ankle, p.footAngle)];
+}
+// silhouette feutre : contour (trait épais derrière) + gris + blanc décalé (clip)
+function figure(shapes, clipId) {
+  const ps = (attrs) => shapes.map(d => `<path d="${d}" ${attrs}/>`).join('');
+  return `<g>${ps(`fill="${INK}" stroke="${INK}" stroke-width="${2 * W}" stroke-linejoin="round"`)}` +
+         `${ps(`fill="${GREY}"`)}` +
+         `<g clip-path="url(#${clipId})"><g transform="translate(${SH.x},${SH.y})">${ps('fill="#fff"')}</g></g></g>`;
+}
+function stroke(d, w, c = INK, extra = '') { return `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`; }
+const L2 = (a, b) => `M${P(a)} L${P(b)}`;
+
+function muscle(d, a) {
+  if (a < 0.01) return '';
+  return `<path d="${d}" fill="#0a6cff" opacity="${f1(clamp(a))}" filter="url(#glow)"/>` +
+         `<path d="${d}" fill="#1f8fff" opacity="${f1(clamp(a))}" filter="url(#glowSoft)"/>` +
+         `<path d="${d}" fill="#5cc4ff" opacity="${f1(clamp((a - .3) * 1.3))}" filter="url(#glowSoft)"/>`;
+}
+function auraBlob(c, r, a) {
+  if (a < 0.02) return '';
+  return `<circle cx="${f1(c.x)}" cy="${f1(c.y)}" r="${r}" fill="#2ea8ff" opacity="${f1(a * .8)}" filter="url(#aura)"/>`;
 }
 
-// ---------- static-ish builders ----------
-function line(a, b, w, o) { return `<line x1="${f1(a.x)}" y1="${f1(a.y)}" x2="${f1(b.x)}" y2="${f1(b.y)}" stroke-width="${w}" stroke-opacity="${o}"/>`; }
-
-function drawMachine(d) {
-  const C = add(H, mul(U, d + 24));               // plate face centre
-  const plateA = add(C, mul(PL, -110)), plateB = add(C, mul(PL, 150));
-  const plateA2 = add(plateA, mul(U, 22)), plateB2 = add(plateB, mul(U, 22));
-  const railA = add(add(H, mul(PL, -205)), mul(U, 130)), railB = add(add(H, mul(PL, -205)), mul(U, 610));
-  const carriage = add(add(H, mul(PL, -205)), mul(U, d + 46));
-  let s = '';
-  // base frame
-  s += line(V(170, 905), V(930, 905), 7, .55);
-  s += line(V(200, 905), V(200, 925), 7, .45) + line(V(900, 905), V(900, 925), 7, .45);
-  // rail + uprights
-  s += line(railA, railB, 6, .5);
-  s += line(railB, V(railB.x, 905), 6, .4);
-  s += line(railA, V(railA.x, 905), 6, .35);
-  // carriage arm
-  s += line(add(plateA2, mul(PL, 30)), carriage, 8, .55);
-  s += `<circle cx="${f1(carriage.x)}" cy="${f1(carriage.y)}" r="9" fill="#fff" fill-opacity=".55" stroke="none"/>`;
-  // plate
-  s += `<path d="M${P(plateA)} L${P(plateB)} L${P(plateB2)} L${P(plateA2)} Z" fill="#0c141c" fill-opacity=".6" stroke-width="5" stroke-opacity=".9"/>`;
-  // plate handle
-  const h1 = add(plateB2, mul(PL, -20)), h2 = add(add(plateB2, mul(U, 34)), mul(PL, -40)), h3 = add(add(plateB2, mul(U, 34)), mul(PL, -150));
-  // seat back pad
-  const sb0 = add(add(H, mul(TN, 58)), mul(TD, -20)), sb1 = add(add(H, mul(TN, 58)), mul(TD, 270));
-  s += line(sb0, sb1, 20, .28) + line(sb0, sb1, 4, .7);
-  // headrest
-  const hr0 = add(add(H, mul(TN, 52)), mul(TD, 300)), hr1 = add(add(H, mul(TN, 52)), mul(TD, 360));
-  s += line(hr0, hr1, 18, .28) + line(hr0, hr1, 4, .7);
-  // seat pan
-  const sp0 = V(300, 700), sp1 = V(500, 690);
-  s += line(sp0, sp1, 18, .28) + line(sp0, sp1, 4, .7);
-  // seat supports
-  s += line(V(420, 700), V(420, 905), 6, .4);
-  const backBase = add(add(H, mul(TN, 66)), mul(TD, 140));
-  s += line(backBase, V(backBase.x + 40, 905), 6, .4);
-  // grip handle
-  s += line(V(410, 690), V(445, 790), 6, .45);
-  s += line(V(445, 790), V(520, 905), 6, .35);
-  $('machine').innerHTML = s;
-  return C;
+function machine(d) {
+  const C = add(H, mul(U, d + 24));                       // face du plateau
+  const pA = add(C, mul(PL, -105)), pB = add(C, mul(PL, 145));
+  const railA = add(add(H, mul(PL, -205)), mul(U, 150)), railB = add(add(H, mul(PL, -205)), mul(U, 600));
+  const car = add(add(H, mul(PL, -205)), mul(U, d + 46));
+  let back = '', front = '';
+  // structure (derrière la figure)
+  back += stroke(L2(V(190, 905), V(920, 905)), 7);
+  back += stroke(L2(railA, railB), 6);
+  back += stroke(L2(railB, V(railB.x, 905)), 6);
+  back += stroke(L2(V(420, 700), V(420, 905)), 6);
+  const bb = add(add(H, mul(TN, 66)), mul(TD, 140));
+  back += stroke(L2(bb, V(bb.x + 40, 905)), 6);
+  // dossier + assise : boudins blancs contour noir
+  const sb0 = add(add(H, mul(TN, 74)), mul(TD, -20)), sb1 = add(add(H, mul(TN, 74)), mul(TD, 330));
+  back += stroke(L2(sb0, sb1), 30) + stroke(L2(sb0, sb1), 16, GREY) + stroke(L2(add(sb0, V(-3, -3)), add(sb1, V(-3, -3))), 10, '#fff');
+  const s0 = V(300, 712), s1 = V(500, 702);
+  back += stroke(L2(s0, s1), 28) + stroke(L2(s0, s1), 14, GREY) + stroke(L2(add(s0, V(-2, -3)), add(s1, V(-2, -3))), 8, '#fff');
+  // plateau (devant)
+  front += stroke(L2(add(car, mul(U, 0)), add(pA, mul(PL, 30))), 7);
+  front += stroke(L2(add(pA, mul(U, 12)), add(pB, mul(U, 12))), 30) + stroke(L2(add(pA, mul(U, 14)), add(pB, mul(U, 14))), 14, GREY);
+  front += `<circle cx="${f1(car.x)}" cy="${f1(car.y)}" r="10" fill="${INK}"/>`;
+  return { back, front, C, pA, pB };
 }
 
-// ---------- labels ----------
-const LABELS = [
-  { key: 'quad', name: 'QUADRICEPS', pos: V(250, 222), anchorSide: 'right' },
-  { key: 'glute', name: 'FESSIERS', pos: V(70, 790), anchorSide: 'right' },
-  { key: 'ham', name: 'ISCHIO-JAMBIERS', pos: V(560, 955), anchorSide: 'left' },
-];
-function labelSvg(L, a, anchor, vis) {
-  const padX = 18, h = 46;
-  const tw = L.name.length * 18.2 + 6;
-  const w = tw + padX * 2;
-  const x = L.pos.x, y = L.pos.y;
-  const on = clamp((a - .2) / .6);
-  const barW = w - padX * 2;
-  // leader
-  const lx = L.anchorSide === 'left' ? x : x + w;
-  const ly = y + h / 2;
-  const mid = V(lx + (L.anchorSide === 'left' ? -28 : 28), ly);
-  let s = `<g opacity="${f1(vis * (0.55 + 0.45 * on))}">`;
-  s += `<path d="M${P(V(lx, ly))} L${P(mid)} L${P(anchor)}" fill="none" stroke="#fff" stroke-width="2.5" stroke-opacity=".85" filter="url(#shadow)"/>`;
-  s += `<circle cx="${f1(anchor.x)}" cy="${f1(anchor.y)}" r="${f1(5 + 3 * on)}" fill="#fff"/>`;
-  s += `<circle cx="${f1(anchor.x)}" cy="${f1(anchor.y)}" r="${f1(14 + 10 * on)}" fill="#3db4ff" opacity="${f1(.55 * on)}" filter="url(#glowSoft)"/>`;
-  s += `<rect x="${x}" y="${y}" width="${f1(w)}" height="${h + 14}" rx="12" fill="#0b131b" fill-opacity=".72"/>`;
-  s += `<rect x="${x}" y="${y}" width="${f1(w)}" height="${h + 14}" rx="12" fill="none" stroke="#5cc6ff" stroke-width="2" stroke-opacity="${f1(on * .9)}"/>`;
-  s += `<text class="lbl" x="${x + padX}" y="${y + 33}" ${on > .3 ? 'filter="url(#textGlow)"' : ''}>${L.name}</text>`;
-  s += `<rect x="${x + padX}" y="${y + h}" width="${f1(barW)}" height="5" rx="2.5" fill="#fff" fill-opacity=".18"/>`;
-  s += `<rect x="${x + padX}" y="${y + h}" width="${f1(barW * clamp(a))}" height="5" rx="2.5" fill="#5cc6ff"/>`;
-  s += `</g>`;
-  return s;
-}
-
-// ---------- caption ----------
-const CAPS = [
-  { n: '1', a: 'POUSSÉE', b: 'à deux pieds', sub: 'Phase concentrique · les deux jambes poussent', t0: 0.0, t1: 2.25 },
-  { n: '2', a: 'DESCENTE', b: 'sur un seul genou', sub: 'Excentrique lente · on freine jusqu’à la flexion max', t0: 2.25, t1: 6.75 },
-  { n: '3', a: 'REPOUSSÉE', b: 'à deux pieds', sub: 'On repose le 2ᵉ pied · on repousse ensemble', t0: 6.75, t1: 10.5 },
-];
-function captionSvg(t) {
-  let s = '';
-  CAPS.forEach(c => {
-    const fin = smooth(seg(t, c.t0, c.t0 + .35)), fout = 1 - smooth(seg(t, c.t1 - .25, c.t1 + .1));
-    const o = Math.min(fin, fout);
-    if (o <= 0.001) return;
-    const dy = (1 - fin) * 18 - (1 - fout) * 12;
-    const wA = c.a.length * 34.5, wB = c.b.length * 21.5;
-    const total = 58 + 18 + wA + 16 + wB;
-    const x0 = 540 - total / 2, y0 = 70 + dy;
-    s += `<g opacity="${f1(o)}">`;
-    s += `<rect x="${f1(x0 - 30)}" y="${f1(y0 - 22)}" width="${f1(total + 60)}" height="136" rx="22" fill="#0b131b" fill-opacity=".72"/>`;
-    s += `<circle cx="${f1(x0 + 29)}" cy="${f1(y0 + 28)}" r="27" fill="#5cc6ff" filter="url(#textGlow)"/>`;
-    s += `<text class="num" x="${f1(x0 + 29)}" y="${f1(y0 + 37.5)}" text-anchor="middle">${c.n}</text>`;
-    s += `<text x="${f1(x0 + 58 + 18)}" y="${f1(y0 + 46)}"><tspan class="cap1">${c.a}</tspan><tspan class="cap2" dx="16">${c.b}</tspan></text>`;
-    s += `<text class="capsub" x="540" y="${f1(y0 + 95)}" text-anchor="middle">${c.sub}</text>`;
-    s += `</g>`;
-  });
-  return s;
-}
-
-// ---------- bottom timeline ----------
-const TL = { x0: 120, x1: 960, y: 1040, t0: T.in, t1: T.push2b };
-function timelineSvg(t) {
-  const parts = [
-    { a: T.in, b: T.push1 + .05, name: '2 PIEDS ↑' },
-    { a: T.push1 + .05, b: T.push2a - .05, name: '1 GENOU ↓  EXCENTRIQUE' },
-    { a: T.push2a - .05, b: T.push2b, name: '2 PIEDS ↑' },
-  ];
-  const X = tt => lerp(TL.x0, TL.x1, (tt - TL.t0) / (TL.t1 - TL.t0));
-  let s = `<g filter="url(#shadow)">`;
-  parts.forEach((p, i) => {
-    const xa = X(p.a) + (i ? 5 : 0), xb = X(p.b) - (i < 2 ? 5 : 0);
-    const prog = clamp((t - p.a) / (p.b - p.a));
-    const active = t >= p.a && t < p.b;
-    s += `<rect x="${f1(xa)}" y="${TL.y}" width="${f1(xb - xa)}" height="8" rx="4" fill="#fff" fill-opacity=".3"/>`;
-    s += `<rect x="${f1(xa)}" y="${TL.y}" width="${f1((xb - xa) * prog)}" height="8" rx="4" fill="#5cc6ff"/>`;
-    s += `<text class="tl" x="${f1((xa + xb) / 2)}" y="${TL.y - 12}" text-anchor="middle" opacity="${active ? 1 : .6}" ${active ? 'filter="url(#textGlow)"' : ''}>${p.name}</text>`;
-  });
-  const px = clamp(X(t), TL.x0, TL.x1);
-  s += `<circle cx="${f1(px)}" cy="${TL.y + 4}" r="9" fill="#fff"/>`;
-  s += `</g>`;
-  return s;
-}
-
-// ---------- direction arrow ----------
-function arrowSvg(t, C) {
-  const pushO = Math.max(smooth(seg(t, T.in, T.in + .25)) * (1 - smooth(seg(t, T.push1 - .25, T.push1))),
-                         smooth(seg(t, T.push2a, T.push2a + .25)) * (1 - smooth(seg(t, T.push2b - .25, T.push2b))));
-  const eccO = smooth(seg(t, T.off1, T.off1 + .3)) * (1 - smooth(seg(t, T.ecc1 - .3, T.ecc1)));
-  const base = add(C, mul(PL, 205));
-  let s = '';
-  const arrow = (dirSign, o, color, label) => {
-    if (o < .01) return '';
-    const a = add(base, mul(U, -60 * dirSign)), b = add(base, mul(U, 60 * dirSign));
-    const d = mul(U, dirSign), n = V(-d.y, d.x);
-    const h1 = add(sub(b, mul(d, 22)), mul(n, 14)), h2 = sub(sub(b, mul(d, 22)), mul(n, 14));
-    let g = `<g opacity="${f1(o)}" filter="url(#shadow)">`;
-    g += `<path d="M${P(a)} L${P(b)} M${P(h1)} L${P(b)} L${P(h2)}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`;
-    g += `</g>`;
-    return g;
-  };
-  s += arrow(1, pushO, '#5cc6ff');
-  s += arrow(-1, eccO, '#ffffff');
-  return s;
-}
-
-// ---------- muscles ----------
-function muscleSvg(d, a, scale = 1) {
-  // halo + core + outline
-  let s = '';
-  if (a > 0.01) {
-    s += `<path d="${d}" fill="#1e8cff" opacity="${f1(clamp(a * 1.0 * scale))}" filter="url(#glow)" transform-origin="center"/>`;
-    s += `<path d="${d}" fill="#3db4ff" opacity="${f1(clamp(a * .85 * scale))}" filter="url(#glowSoft)"/>`;
-    s += `<path d="${d}" fill="#9fe3ff" opacity="${f1(clamp((a - .35) * 1.1 * scale))}"/>`;
-  }
-  s += `<path d="${d}" fill="none" stroke="#fff" stroke-width="2" stroke-opacity=".38"/>`;
-  return s;
-}
-function fibers(p, x0, x1, yc, h, n) {
-  // subtle fibre lines within a belly (for the anatomical look)
-  const dir = norm(sub(p.knee, p.hip)), nn = V(-dir.y, dir.x), L = len(sub(p.knee, p.hip));
-  let s = '';
-  for (let i = 1; i < n; i++) {
-    const k = i / n * 2 - 1;
-    const W = (x, y) => add(add(p.hip, mul(dir, x * L)), mul(nn, y));
-    const a = W(x0 + .08, yc + k * h * .55), b = W(x1 - .08, yc + k * h * .55), c = W((x0 + x1) / 2, yc + k * h * 1.0);
-    s += `<path d="M${P(a)} Q${P(c)} ${P(b)}" fill="none" stroke="#fff" stroke-width="1.3" stroke-opacity=".22"/>`;
-  }
-  return s;
-}
-
-// ---------- frame ----------
 function render(t) {
-  const d = dist(t);
-  const A = act(t);
-  const C = drawMachine(d);
+  const d = dist(t), A = act(t);
+  const M = machine(d);
 
-  // near leg
-  const ankleN = add(H, mul(U, d));
+  // ombre au sol
+  $('ground').innerHTML = stroke('M200,938 Q560,928 930,924', 22, GREY, 'opacity=".9"') ;
+  $('machineBack').innerHTML = `<g filter="url(#marker)">${M.back}</g>`;
+
+  // poses
   const plateAng = Math.atan2(PL.y, PL.x);
-  const near = legPose(H, ankleN, plateAng);
-
-  // far leg
+  const near = legPose(H, add(H, mul(U, d)), plateAng);
   const k = farOff(t);
   const hipF = add(H, FAR);
-  const plateAnkleF = add(add(H, mul(U, d)), FAR);
-  const restAnkle = REST;
-  const lift = Math.sin(Math.PI * k);
-  let ankleF = lerpV(plateAnkleF, restAnkle, k);
-  ankleF = add(ankleF, mul(V(-0.6, -0.8), 55 * lift));
-  const floorAng = -6 * Math.PI / 180;
-  // interpolate angles (shortest path)
-  let da = floorAng - plateAng; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+  let ankleF = lerpV(add(add(H, mul(U, d)), FAR), REST, k);
+  ankleF = add(ankleF, mul(V(-0.6, -0.8), 55 * Math.sin(Math.PI * k)));
+  let da = (-6 * Math.PI / 180) - plateAng; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
   const far = legPose(hipF, ankleF, plateAng + da * smooth(k));
 
-  // torso / head / arm
-  const S = add(H, mul(TD, 250));
-  const headC = add(add(S, mul(TD, 74)), mul(TN, -6));
-  const hand = V(408, 694);
-  const elbow = ik(S, hand, 162, 150, 1);
-  const torso = [
-    capsule(add(H, mul(TN, 6)), add(S, mul(TN, 4)), 54, 50),
-    capsule(S, headC, 16, 16),
-    circle(headC, 38),
-  ];
-  const arm = [capsule(S, elbow, 20, 15), capsule(elbow, hand, 15, 12), circle(hand, 14)];
+  const S = add(H, mul(TD, 240));
+  const headC = add(add(S, mul(TD, 88)), mul(TN, -4));
+  const hand = V(412, 700);
+  const elbow = ik(S, hand, 160, 150, 1);
 
-  // --- far leg
+  // jambe arrière (grisée légèrement par son ombre)
   const farSh = legShapes(far);
-  $('farFill').innerHTML = farSh.map(p => `<path d="${p}"/>`).join('');
-  $('farOutline').innerHTML = farSh.map(p => `<path d="${p}"/>`).join('');
-  $('maskFarShapes').innerHTML = farSh.map(p => `<path d="${p}"/>`).join('');
-  const fq = belly(far.hip, far.knee, .14, .9, -10, 17);
-  $('farMuscles').innerHTML = muscleSvg(fq.d, A.farQuad);
+  $('clipFar').innerHTML = farSh.map(p => `<path d="${p}"/>`).join('');
+  $('far').innerHTML = figure(farSh, 'clipFar');
+  const fq = belly(far.hip, far.knee, .14, .9, -10, 16);
+  $('farGlow').innerHTML = muscle(fq.d, A.farQuad);
 
-  // --- body
-  const bodySh = torso.concat(arm);
-  $('bodyFill').innerHTML = torso.map(p => `<path d="${p}"/>`).join('');
-  $('bodyOutline').innerHTML = bodySh.map(p => `<path d="${p}"/>`).join('');
-  $('maskBodyShapes').innerHTML = bodySh.map(p => `<path d="${p}"/>`).join('');
-  // glute (sits under / behind the hip, against the seat)
-  const gC = add(add(H, mul(TN, 34)), mul(TD, 4));
+  // corps + jambe avant = une seule silhouette
+  const torso = capsule(H, S, 50, 38);
+  const head = `M${f1(headC.x)},${f1(headC.y - 36)} C${f1(headC.x + 26)},${f1(headC.y - 38)} ${f1(headC.x + 32)},${f1(headC.y + 30)} ${f1(headC.x + 2)},${f1(headC.y + 34)} C${f1(headC.x - 30)},${f1(headC.y + 36)} ${f1(headC.x - 28)},${f1(headC.y - 34)} ${f1(headC.x)},${f1(headC.y - 36)} Z`;
+  const mainSh = [torso].concat(legShapes(near));
+  $('clipMain').innerHTML = mainSh.concat([head]).map(p => `<path d="${p}"/>`).join('');
+  $('main').innerHTML = figure(mainSh, 'clipMain') + figure([head], 'clipMain');
+
+  // muscles (clippés dans la silhouette)
+  const q = belly(near.hip, near.knee, .12, .92, -10, 17);
+  const hm = belly(near.hip, near.knee, .1, .84, 14, 12);
+  const gC = add(add(H, mul(TN, 26)), mul(TD, 18));
   const gl = `M${P(add(gC, V(-46, -8)))} C${P(add(gC, V(-48, -44)))} ${P(add(gC, V(30, -48)))} ${P(add(gC, V(46, -10)))} C${P(add(gC, V(56, 26)))} ${P(add(gC, V(-30, 40)))} ${P(add(gC, V(-46, -8)))} Z`;
-  $('glute').innerHTML = '';
+  $('mainGlow').innerHTML = muscle(gl, A.glute) + muscle(hm.d, A.ham * .9) + muscle(q.d, A.quad);
+  // halo extérieur
+  $('aura').innerHTML = auraBlob(q.center, 70, A.quad) + auraBlob(gC, 60, A.glute) + auraBlob(add(fq.center, V(0, 0)), 60, A.farQuad * .6);
 
-  // --- near leg
-  const nearSh = legShapes(near);
-  // arm drawn on top of the near leg? (hand is beside the seat, under the thigh) -> keep body layer below the leg
-  $('nearFill').innerHTML = nearSh.map(p => `<path d="${p}"/>`).join('') + arm.map(p => `<path d="${p}"/>`).join('');
-  $('nearOutline').innerHTML = nearSh.map(p => `<path d="${p}"/>`).join('');
-  $('maskNearShapes').innerHTML = nearSh.map(p => `<path d="${p}"/>`).join('');
-  const q = belly(near.hip, near.knee, .13, .92, -11, 18);
-  const hm = belly(near.hip, near.knee, .1, .84, 15, 13);
-  $('nearMuscles').innerHTML =
-    muscleSvg(gl, A.glute) + muscleSvg(hm.d, A.ham) + fibers(near, .13, .92, -11, 18, 4) + muscleSvg(q.d, A.quad);
+  // bras (par-dessus, effilé en pointe)
+  const armSh = [capsule(S, elbow, 17, 12), capsule(elbow, hand, 12, 3)];
+  $('clipArm').innerHTML = armSh.map(p => `<path d="${p}"/>`).join('');
+  $('arm').innerHTML = '';
 
-  // --- labels
-  const glAnchor = add(gC, V(-10, 8));
-  const vis = 1;
-  $('labels').innerHTML =
-    labelSvg(LABELS[0], A.quad, q.center, vis) +
-    labelSvg(LABELS[1], A.glute, glAnchor, vis) +
-    labelSvg(LABELS[2], A.ham, hm.center, vis);
+  $('machineFront').innerHTML = `<g filter="url(#marker)">${M.front}</g>`;
 
-  $('arrow').innerHTML = arrowSvg(t, C);
-  $('caption').innerHTML = captionSvg(t);
-  $('timeline').innerHTML = timelineSvg(t);
+  // traits de mouvement "))" derrière le plateau pendant les poussées, tremblement au genou pendant l'excentrique
+  const push = Math.max(smooth(seg(t, T.in, T.in + .2)) * (1 - smooth(seg(t, T.push1 - .2, T.push1 + .1))),
+                        smooth(seg(t, T.push2a, T.push2a + .2)) * (1 - smooth(seg(t, T.push2b - .2, T.push2b + .1))));
+  let mo = '';
+  if (push > .01) {
+    const base = add(M.C, mul(U, 60));
+    [0, 1].forEach(i => {
+      const c = add(add(base, mul(U, 26 * i)), mul(PL, 20));
+      const a = add(c, mul(PL, 55 - 8 * i)), b = add(c, mul(PL, -55 + 8 * i)), m = add(c, mul(U, 18));
+      mo += stroke(`M${P(a)} Q${P(m)} ${P(b)}`, 6, INK, `opacity="${f1(push)}"`);
+    });
+  }
+  if (A.ecc > .01) {
+    const kn = near.knee, jit = Math.sin(t * 40) * 2;
+    [[-1, 0], [-1, 1], [1, 0], [1, 1]].forEach(([sg, i]) => {
+      const c = add(kn, V(sg * (52 + 16 * i) + jit, -10));
+      mo += stroke(`M${P(add(c, V(0, -20 + 4 * i)))} Q${P(add(c, V(sg * 9, 0)))} ${P(add(c, V(0, 20 - 4 * i)))}`, 5, INK, `opacity="${f1(A.ecc)}"`);
+    });
+  }
+  $('motion').innerHTML = `<g filter="url(#marker)">${mo}</g>`;
 
-  // global fade in / out
   const g = smooth(seg(t, 0, .45)) * (1 - smooth(seg(t, 9.5, 10)));
   $('root').setAttribute('opacity', g.toFixed(3));
 }
 window.render = render;
 const qs = new URLSearchParams(location.search);
-if (qs.has('t')) render(parseFloat(qs.get('t')));
 if (qs.has('preview')) document.body.classList.add('preview');
+if (qs.has('t')) render(parseFloat(qs.get('t')));
 </script>
 </body>
 </html>

@@ -6,7 +6,7 @@ const fs = require('fs');
   fs.mkdirSync(out, { recursive: true });
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 1080, height: 1080 } });
-  await p.goto('file://' + __dirname + '/anim.html');
+  await p.goto('file://' + __dirname + '/' + (process.env.PAGE || 'anim.html') + '');
   await p.evaluate(() => document.fonts.ready);
   for (let i = 0; i < FPS * DUR; i++) {
     await p.evaluate(t => render(t), i / FPS);

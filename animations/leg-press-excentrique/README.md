@@ -2,13 +2,15 @@
 
 Overlay 2D animé, fond transparent (couche alpha), 1080×1080, 30 i/s, 10 s.
 
+Style feutre / croquis (silhouette blanche, contour noir, ombre grise), **sans texte** : seules les zones qui travaillent s'allument en bleu.
+
 | Temps | Phase | Muscles en lueur bleue |
 |---|---|---|
-| 0,6 → 2,2 s | ① Poussée à deux pieds | Quadriceps (fort), fessiers, ischios (léger) |
+| 0,6 → 2,2 s | Poussée à deux pieds (traits de mouvement derrière le plateau) | Quadriceps (fort), fessiers, ischios (léger) |
 | 2,2 → 2,9 s | Retrait du 2ᵉ pied | maintien |
-| 2,9 → 6,6 s | ② Descente excentrique sur un genou, flexion max | Quadriceps de la jambe qui travaille (max, vibration de tension), fessiers qui montent avec la profondeur |
+| 2,9 → 6,6 s | Descente excentrique sur un genou, flexion max | Quadriceps de la jambe qui travaille (max, petits traits de tremblement au genou), fessiers qui montent avec la profondeur |
 | 6,6 → 7,2 s | Le 2ᵉ pied revient | |
-| 7,2 → 8,8 s | ③ Repoussée à deux pieds | Quadriceps, fessiers |
+| 7,2 → 8,8 s | Repoussée à deux pieds | Quadriceps, fessiers |
 
 ## Fichiers
 - `export/leg-press-excentrique_alpha_QTAnimation.mov` : QuickTime Animation RGBA, sans perte. À glisser directement dans Premiere Pro.
