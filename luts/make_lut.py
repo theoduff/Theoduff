@@ -30,19 +30,19 @@ def bump(h, center, width):
 def grade(c):
     c = c.astype(np.float64)
     # 1) Balance des blancs : enlève la dominante jaune-orange du sodium
-    c = c * np.array([0.93, 0.97, 1.10])
+    c = c * np.array([0.85, 0.94, 1.27])
     c = np.clip(c, 0, 1)
     # 2) Travail sélectif des teintes
     h, s, v = rgb2hsv(c)
     yel = bump(h, 52 / 360, 30 / 360)          # jaunes (sol, lignes, lumière)
     skin = bump(h, 22 / 360, 14 / 360)         # peau protégée
     yel = yel * (1 - skin)
-    h = h - yel * (9 / 360)                    # jaune -> ambre/orange chaud
-    s = s * (1 - 0.30 * yel)                    # jaunes moins criards
+    h = h - yel * (8 / 360)                    # jaune -> ambre/orange chaud
+    s = s * (1 - 0.50 * yel)                    # jaunes moins criards
     v = v * (1 - 0.05 * yel)
     blue = bump(h, 225 / 360, 45 / 360)
-    s = s * (1 + 0.20 * blue)                   # bleus (jogging, gradins) plus riches
-    s = s * (1 + 0.08 * skin)                   # peau un peu plus vivante
+    s = s * (1 + 0.03 * blue)                   # bleus (jogging, gradins) plus riches
+    s = s * (1 + 0.15 * skin)                   # peau un peu plus vivante
     c = np.clip(hsv2rgb(h % 1, np.clip(s, 0, 1), v), 0, 1)
     # 3) Contraste (courbe en S douce) + noirs légèrement relevés
     x = c
@@ -52,7 +52,7 @@ def grade(c):
     luma = c @ np.array([0.2126, 0.7152, 0.0722])
     sh = np.clip(1 - luma / 0.45, 0, 1)[..., None]
     hi = np.clip((luma - 0.6) / 0.4, 0, 1)[..., None]
-    c = c + sh * np.array([-0.02, 0.004, 0.015]) + hi * np.array([0.015, 0.008, -0.01])
+    c = c + sh * np.array([0.0, 0.0, 0.0]) + hi * np.array([0.0, 0.0, 0.0])
     # 5) Légère saturation globale (vibrance)
     luma = (c @ np.array([0.2126, 0.7152, 0.0722]))[..., None]
     sat = c.max(-1, keepdims=True) - c.min(-1, keepdims=True)
