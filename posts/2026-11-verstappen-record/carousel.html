@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b0f;--ink:#f4f1ea;--muted:#8a8a96;--red:#e10600;--orange:#ff8a00;--teal:#00d2be;--line:#24242c}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#333;font-family:Inter,sans-serif;color:var(--ink)}
+.slide{width:1080px;height:1350px;background:var(--bg);position:relative;overflow:hidden;padding:90px 80px;display:flex;flex-direction:column;margin-bottom:20px}
+.slide::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,transparent 0 46px,rgba(255,255,255,.018) 46px 48px);pointer-events:none}
+.brand{position:absolute;left:80px;bottom:60px;font:800 22px Inter;letter-spacing:.32em;color:var(--muted)}
+.brand b{color:var(--red)}
+.pager{position:absolute;right:80px;bottom:60px;font:600 22px Inter;color:var(--muted);letter-spacing:.1em}
+.kicker{font:800 26px Inter;letter-spacing:.28em;color:var(--red);text-transform:uppercase}
+.anton{font-family:Anton,Impact,sans-serif;text-transform:uppercase;line-height:.92;letter-spacing:.005em}
+.stripe{position:absolute;right:-120px;top:0;width:520px;height:100%;background:linear-gradient(115deg,transparent 0 30%,var(--red) 30% 33%,transparent 33% 40%,rgba(225,6,0,.35) 40% 41%,transparent 41%)}
+/* slide 1 */
+.big7{font:400 560px/0.8 Anton;color:transparent;-webkit-text-stroke:3px rgba(244,241,234,.14);position:absolute;right:40px;top:120px}
+.s1 h1{font-size:118px;margin-top:40px;position:relative}
+.s1 h1 em{font-style:normal;color:var(--red)}
+.s1 .sub{font:600 38px/1.35 Inter;color:var(--ink);margin-top:auto;margin-bottom:110px;max-width:860px;position:relative}
+.s1 .sub span{color:var(--orange)}
+.pill{position:relative;margin-top:70px;border-left:6px solid var(--red);padding:10px 0 10px 28px;font:600 36px/1.35 Inter;color:var(--muted);max-width:760px}.pill b{color:var(--ink);font-weight:900}
+.swipe{position:absolute;right:80px;bottom:120px;font:800 24px Inter;letter-spacing:.2em;color:var(--ink);opacity:.85}
+/* slide 2 */
+.stat{display:flex;gap:28px;margin-top:70px}
+.box{flex:1;border:2px solid var(--line);padding:40px 36px;background:#121218}
+.box .n{font:400 200px/0.85 Anton}
+.box .l{font:600 30px/1.3 Inter;color:var(--muted);margin-top:18px}
+.box.hot{border-color:var(--red)}
+.box.hot .n{color:var(--red)}
+.s2 h2{font-size:96px;margin-top:36px}
+.s2 p{font:600 38px/1.4 Inter;margin-top:auto;margin-bottom:120px}
+.s2 p b{color:var(--orange)}
+/* slide 3 */
+.s3 h2{font-size:104px;margin-top:30px}
+.rows{margin-top:56px;display:flex;flex-direction:column;gap:22px}
+.row{display:grid;grid-template-columns:70px 300px 1fr 150px;align-items:center;gap:22px;font:800 40px Inter}
+.row .pos{font:400 54px Anton;color:var(--muted)}
+.row .name{text-transform:uppercase;letter-spacing:.02em}
+.bar{height:58px;background:#1c1c24;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+.row .pts{font:400 58px Anton;text-align:right}
+.row.max .bar i{background:var(--red)} .row.max .pos{color:var(--red)}
+.row.lh .bar i{background:var(--teal)} .row.lh .name{color:var(--teal)}
+.gap{font:600 24px Inter;color:var(--muted);display:block;margin-top:4px;letter-spacing:.05em}
+.callout{margin-top:auto;margin-bottom:110px;display:flex;align-items:baseline;gap:30px}
+.callout .n{font:400 150px/0.85 Anton;color:var(--orange)}
+.callout .t{font:600 38px/1.3 Inter}
+.axis{font:600 20px Inter;color:var(--muted);margin-top:14px;margin-bottom:40px;padding-left:392px;letter-spacing:.05em}
+/* slide 4 */
+.races{margin-top:60px;display:flex;flex-direction:column;gap:20px}
+.race{display:flex;align-items:center;justify-content:space-between;border:2px solid var(--line);padding:30px 40px;background:#121218}
+.race .rn{font:400 92px/1 Anton;text-transform:uppercase}
+.race .ri{font:800 26px Inter;color:var(--muted);letter-spacing:.2em}
+.race.vegas{border-color:var(--red);background:linear-gradient(90deg,rgba(225,6,0,.18),#121218 70%)}
+.race.vegas .ri{color:var(--red)}
+.s4 h2{font-size:100px;margin-top:30px}
+.s4 .note{font:600 36px/1.4 Inter;margin-top:auto;margin-bottom:110px}
+.s4 .note b{color:var(--red)}
+/* slide 5 */
+.s5{justify-content:center}
+.s5 .vs{display:flex;align-items:center;justify-content:space-between;margin-bottom:70px}
+.s5 .who{font:400 150px/0.9 Anton;text-transform:uppercase}
+.s5 .who small{display:block;font:800 26px Inter;letter-spacing:.25em;color:var(--muted);margin-top:16px}
+.s5 .x{font:400 90px Anton;color:var(--muted)}
+.s5 h2{font-size:132px;line-height:1.08;position:relative}
+.s5 h2 em{font-style:normal;color:var(--red)}
+.s5 .cta{margin-top:60px;display:flex;gap:24px}
+.s5 .cta div{flex:1;padding:34px;border:2px solid var(--line);font:800 36px Inter;text-align:center;background:#121218}
+.s5 .cta div:first-child{border-color:var(--red)}
+</style></head><body>
+
+<section class="slide s1" id="s1">
+  <div class="stripe"></div>
+  <div class="big7">7</div>
+  <div class="kicker">F1 · Record en jeu</div>
+  <h1 class="anton">Verstappen<br>peut égaler<br>un record de<br><em>Hamilton</em></h1>
+  <div class="pill"><b>7</b> saisons de suite dans le top 3.<br>Une 8e, et c'est le record de Lewis.</div>
+  <p class="sub">… et Hamilton est l'un de ceux qui peuvent <span>l'en empêcher.</span></p>
+  <div class="swipe">SWIPE →</div>
+  <div class="brand"><b>MADE</b> IN SPORT</div><div class="pager">1/5</div>
+</section>
+
+<section class="slide s2" id="s2">
+  <div class="kicker">Le record</div>
+  <h2 class="anton">Top 3 du championnat,<br>saison après saison</h2>
+  <div class="stat">
+    <div class="box hot"><div class="n">7</div><div class="l">saisons de suite dans le top 3 pour Verstappen</div></div>
+    <div class="box"><div class="n">8</div><div class="l">le record de Hamilton</div></div>
+  </div>
+  <p>Encore un top 3 cette saison, et Max <b>égale Lewis.</b></p>
+  <div class="brand"><b>MADE</b> IN SPORT</div><div class="pager">2/5</div>
+</section>
+
+<section class="slide s3" id="s3">
+  <div class="kicker">Derrière lui, ça se resserre</div>
+  <h2 class="anton">La bataille<br>pour le podium</h2>
+  <div class="rows">
+    <div class="row max"><div class="pos">P2</div><div class="name">Verstappen</div><div class="bar"><i style="width:100%"></i></div><div class="pts">279</div></div>
+    <div class="row"><div class="pos">P3</div><div class="name">Russell<span class="gap">−17</span></div><div class="bar"><i style="width:68.5%"></i></div><div class="pts">262</div></div>
+    <div class="row lh"><div class="pos">P4</div><div class="name">Hamilton<span class="gap">−18</span></div><div class="bar"><i style="width:66.7%"></i></div><div class="pts">261</div></div>
+    <div class="row"><div class="pos">P5</div><div class="name">Leclerc<span class="gap">−30</span></div><div class="bar"><i style="width:44.4%"></i></div><div class="pts">249</div></div>
+    <div class="row"><div class="pos">P6</div><div class="name">Norris<span class="gap">−33</span></div><div class="bar"><i style="width:38.9%"></i></div><div class="pts">246</div></div>
+  </div>
+  <div class="axis">Barres zoomées à partir de 225 pts</div>
+  <div class="callout"><div class="n">33 PTS</div><div class="t">entre 5 pilotes,<br>à 3 courses de la fin</div></div>
+  <div class="brand"><b>MADE</b> IN SPORT</div><div class="pager">3/5</div>
+</section>
+
+<section class="slide s4" id="s4">
+  <div class="kicker">Plus que 3 courses</div>
+  <h2 class="anton">Le sprint final</h2>
+  <div class="races">
+    <div class="race vegas"><div class="rn">Las Vegas</div><div class="ri">VAINQUEUR 2023 & 2025</div></div>
+    <div class="race"><div class="rn">Qatar</div><div class="ri">AVANT-DERNIÈRE</div></div>
+    <div class="race"><div class="rn">Abu Dhabi</div><div class="ri">FINALE</div></div>
+  </div>
+  <p class="note">Vegas, c'est le terrain de jeu de Max : <b>il y a gagné en 2023 et en 2025.</b></p>
+  <div class="brand"><b>MADE</b> IN SPORT</div><div class="pager">4/5</div>
+</section>
+
+<section class="slide s5" id="s5">
+  <div class="vs">
+    <div class="who" style="color:var(--red)">Max<small>CHASSE LE RECORD</small></div>
+    <div class="x">VS</div>
+    <div class="who" style="text-align:right;color:var(--teal)">Lewis<small>PROTÈGE LE SIEN</small></div>
+  </div>
+  <h2 class="anton">Alors, il égale<br><em>Lewis</em> ou pas ?</h2>
+  <div class="cta"><div>OUI, TOP 3</div><div>NON, IL CRAQUE</div></div>
+  <div class="brand"><b>MADE</b> IN SPORT</div><div class="pager">5/5</div>
+</section>
+</body></html>
