@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Aperçu Avent 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Quicksand:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; padding: 40px; background: #e9e4dc; font-family: Quicksand, sans-serif; display: flex; flex-wrap: wrap; gap: 40px; }
+  .card { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #333; }
+  svg { display: block; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+</style>
+<!-- Même configuration que le script Photoshop -->
+<script src="../photoshop/config/avent2026.config.jsx"></script>
+</head>
+<body>
+<script>
+/*
+ * Aperçu fidèle des créas générées par le script Photoshop.
+ * Toutes les valeurs viennent de photoshop/config/avent2026.config.jsx.
+ * ?f=feed|story&s=1..4 pour n'afficher qu'un visuel.
+ */
+const C = AVENT_CONFIG, NS = "http://www.w3.org/2000/svg";
+const params = new URLSearchParams(location.search);
+const scale = parseFloat(params.get("scale") || "1");
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function text(parent, str, x, y, size, font, color, opts = {}) {
+  const t = el("text", {
+    x, y, "font-size": size, "font-family": font, fill: color, "text-anchor": "middle",
+    "font-style": opts.italic ? "italic" : "normal", "font-weight": opts.weight || 400,
+    "letter-spacing": ((opts.tracking || 0) / 1000 * size) + "px",
+    opacity: opts.opacity == null ? 1 : opts.opacity
+  }, parent);
+  t.textContent = str;
+  return t;
+}
+function star4(cx, cy, R) {
+  const r = R * 0.22, pts = [];
+  for (let i = 0; i < 8; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 4, rr = i % 2 ? r : R;
+    pts.push((cx + Math.cos(a) * rr).toFixed(2) + "," + (cy + Math.sin(a) * rr).toFixed(2));
+  }
+  return "M" + pts.join(" L") + " Z";
+}
+function archPath(a) {
+  const R = a.l / 2;
+  return `M${a.x},${a.y + R} A${R},${R} 0 0 1 ${a.x + a.l},${a.y + R} L${a.x + a.l},${a.y + a.h} L${a.x},${a.y + a.h} Z`;
+}
+
+function build(fmtKey, wk) {
+  const F = C.formats[fmtKey], S = C.semaines[wk], col = C.couleurs, T = C.textes;
+  const serif = C.policesCss.titre, sans = C.policesCss.texte;
+  const id = fmtKey + wk;
+  const svg = el("svg", { width: F.largeur * scale, height: F.hauteur * scale, viewBox: `0 0 ${F.largeur} ${F.hauteur}`, id: "v-" + fmtKey + "-" + S.numero });
+  const defs = el("defs", {}, svg);
+  const blur = (n, sd) => { const f = el("filter", { id: n + id, x: "-50%", y: "-50%", width: "200%", height: "200%" }, defs); el("feGaussianBlur", { stdDeviation: sd }, f); };
+  blur("halo", 140); blur("ombre", 18); blur("glow", 90); blur("eclat", 6);
+  const cp = el("clipPath", { id: "clipArche" + id }, defs); el("path", { d: archPath(F.arche) }, cp);
+
+  // FOND
+  el("rect", { x: 0, y: 0, width: F.largeur, height: F.hauteur, fill: S.fond }, svg);
+  el("ellipse", { cx: F.halo.cx, cy: F.halo.cy, rx: F.halo.rx, ry: F.halo.ry, fill: S.fondClair, opacity: F.halo.opacite / 100 * 2, filter: `url(#halo${id})` }, svg);
+
+  // DÉCOR : neige + étincelles
+  AVENT_flocons(F).forEach(([x, y, r]) => el("circle", { cx: x, cy: y, r, fill: col.creme, opacity: .55 }, svg));
+  F.etincelles.forEach(([x, y, s]) => {
+    el("path", { d: star4(x, y, s * 1.6), fill: col.orClair, opacity: .35, filter: `url(#eclat${id})` }, svg);
+    el("path", { d: star4(x, y, s), fill: col.orClair }, svg);
+  });
+
+  // CADRE
+  const m = F.cadre.marge;
+  el("rect", { x: m, y: m, width: F.largeur - 2 * m, height: F.hauteur - 2 * m, rx: F.cadre.rayon, fill: "none", stroke: col.or, "stroke-width": F.cadre.epaisseur, opacity: .75 }, svg);
+
+  // ARCHE (porte du calendrier)
+  const A = F.arche;
+  el("path", { d: archPath(A), fill: S.fondClair }, svg);
+  const g = el("g", { "clip-path": `url(#clipArche${id})` }, svg);
+  el("ellipse", { cx: A.x + A.l / 2, cy: A.y + A.h * 0.45, rx: A.l * 0.55, ry: A.h * 0.4, fill: col.creme, opacity: .22, filter: `url(#glow${id})` }, g);
+  el("path", { d: archPath(A), fill: "none", stroke: col.or, "stroke-width": A.epaisseur }, svg);
+  // filet intérieur
+  const inA = { x: A.x + 14, y: A.y + 14, l: A.l - 28, h: A.h - 28 };
+  el("path", { d: archPath(inA), fill: "none", stroke: col.or, "stroke-width": 1, opacity: .5 }, svg);
+
+  // PRODUIT
+  const O = F.ombreProduit;
+  el("ellipse", { cx: O.cx, cy: O.cy + S.produitDecalageY, rx: O.rx, ry: O.ry, fill: col.ombre, opacity: O.opacite / 100, filter: `url(#ombre${id})` }, svg);
+  const img = el("image", { href: "../photoshop/assets/produits/" + S.image }, svg);
+  const probe = new Image();
+  probe.onload = () => {
+    const P = F.produit, k = Math.min(P.lMax / probe.width, P.hMax / probe.height) * S.produitEchelle;
+    const w = probe.width * k, h = probe.height * k;
+    img.setAttribute("x", P.cx - w / 2); img.setAttribute("y", P.cy - h / 2 + S.produitDecalageY);
+    img.setAttribute("width", w); img.setAttribute("height", h);
+    img.dataset.ready = 1;
+  };
+  probe.src = "../photoshop/assets/produits/" + S.image;
+
+  // PASTILLE DATE
+  const P = F.pastille, bx = A.x + A.l / 2;
+  el("circle", { cx: bx, cy: P.cy, r: P.r + 8, fill: S.fond }, svg);
+  el("circle", { cx: bx, cy: P.cy, r: P.r, fill: col.or }, svg);
+  el("circle", { cx: bx, cy: P.cy, r: P.r - 6, fill: "none", stroke: S.fond, "stroke-width": 1, opacity: .45 }, svg);
+  text(svg, S.jour, bx, P.cy + P.tailleJour * 0.22, P.tailleJour, sans, S.fond, { weight: 700, tracking: 20 });
+  text(svg, S.mois, bx, P.cy + P.tailleJour * 0.22 + P.tailleMois * 1.5, P.tailleMois, sans, S.fond, { weight: 700, tracking: 200 });
+
+  // TEXTES
+  if (F.logo) text(svg, T.logo, F.largeur / 2, F.logo.y, F.logo.taille, sans, col.creme, { weight: 700, tracking: F.logo.approche });
+  text(svg, S.surtitre || T.surtitre, F.largeur / 2, F.surtitre.y, F.surtitre.taille, sans, col.or, { weight: 600, tracking: F.surtitre.approche });
+  text(svg, T.titre1, F.largeur / 2, F.titre1.y, F.titre1.taille, serif, col.creme);
+  text(svg, T.titre2, F.largeur / 2, F.titre2.y, F.titre2.taille, serif, col.creme, { italic: true });
+  text(svg, T.accroche, F.largeur / 2, F.accroche.y, F.accroche.taille, sans, col.creme, { tracking: F.accroche.approche });
+  text(svg, S.cadeau, F.largeur / 2, F.cadeau.y, F.cadeau.taille, serif, col.creme, { italic: true });
+  text(svg, S.details, F.largeur / 2, F.details.y, F.details.taille, sans, col.creme, { weight: 500, tracking: F.details.approche, opacity: .8 });
+
+  const V = F.valeur;
+  const vt = text(svg, S.valeur.toUpperCase(), F.largeur / 2, V.y, V.taille, sans, S.fond, { weight: 700, tracking: V.approche });
+  requestAnimationFrame(() => {
+    const w = vt.getComputedTextLength() + 2 * V.padding;
+    const r = el("rect", { x: F.largeur / 2 - w / 2, y: V.y - V.taille * 0.36 - V.hauteur / 2, width: w, height: V.hauteur, rx: V.hauteur / 2, fill: col.or }, null);
+    svg.insertBefore(r, vt);
+  });
+
+  if (F.cta) text(svg, S.tirage, F.largeur / 2, F.cta.y, F.cta.taille, sans, col.creme, { weight: 500, tracking: F.cta.approche, opacity: .85 });
+
+  return svg;
+}
+
+const fmts = params.get("f") ? [params.get("f")] : ["feed", "story"];
+const weeks = params.get("s") ? [parseInt(params.get("s")) - 1] : [0, 1, 2, 3];
+document.fonts.ready.then(() => {
+  fmts.forEach(f => weeks.forEach(w => {
+    const card = document.createElement("div"); card.className = "card";
+    card.appendChild(build(f, w));
+    const lab = document.createElement("div"); lab.textContent = C.semaines[w].fichier + "_" + C.formats[f].nom; card.appendChild(lab);
+    document.body.appendChild(card);
+  }));
+  setTimeout(() => document.body.dataset.ready = 1, 600);
+});
+</script>
+</body>
+</html>
