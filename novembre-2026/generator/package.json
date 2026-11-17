@@ -1,0 +1,7 @@
+{
+  "name": "mdll-planning-novembre-2026",
+  "private": true,
+  "description": "Génère les PSD calques du planning du 23 au 30 novembre 2026 sans Photoshop",
+  "scripts": { "build": "node generate.js" },
+  "dependencies": { "ag-psd": "^34.2.1" }
+}

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Rendu planning novembre</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=Quicksand:wght@400;500;700&family=Inter:wght@300;400;600&display=block" rel="stylesheet">
+<script src="../../avent-2026/photoshop/lib/mdll_helpers.jsx"></script>
+<script src="engine.js"></script>
+<script src="visuals.js"></script>
+</head>
+<body>
+<script>
+window.listVisuals = () => VISUALS.map(v => v.file);
+window.renderOne = i => VISUALS[i].fn();
+(async () => {
+  await document.fonts.ready;
+  for (const k in FONTS) await document.fonts.load(FONTS[k].css.replace("{s}", 40));
+  document.body.dataset.ready = 1;
+})();
+</script>
+</body>
+</html>
