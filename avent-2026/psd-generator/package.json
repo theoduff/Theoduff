@@ -1,0 +1,7 @@
+{
+  "name": "mdll-avent-2026-psd",
+  "private": true,
+  "description": "Génère les PSD calques du Calendrier de l'Avent 2026 sans Photoshop",
+  "scripts": { "build": "node generate.js" },
+  "dependencies": { "ag-psd": "^34.2.1" }
+}

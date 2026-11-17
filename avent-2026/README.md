@@ -85,6 +85,13 @@ Les images de `assets/produits/` sont **provisoires**. Elles ont été détouré
 ### Logo
 Déposez le logo officiel en PNG transparent sous le nom `assets/logo/logo.png`. Il sera placé à la place du texte provisoire « MAISON DE LA LITERIE ».
 
+## PSD déjà générés (sans Photoshop)
+
+Les 8 PSD calques peuvent aussi être fabriqués sans Photoshop :
+`cd psd-generator && npm install && node generate.js` (nécessite Node et Playwright). Ils sont écrits dans `sorties/psd/`.
+Ces PSD contiennent des calques de forme vectoriels, des calques texte et des groupes. Le produit y est un calque pixel : pour en faire un objet dynamique, faites un clic droit › *Convertir en objet dynamique*.
+À l'ouverture, Photoshop peut proposer de **mettre à jour les calques texte** : installez d'abord Playfair Display et Quicksand, puis acceptez.
+
 ## Exporter pour Instagram
 
 **MDLL Lanceur › 02 Exporter PNG JPG** exporte les documents ouverts, ou tous les PSD de `sorties/psd`, en JPG qualité maximale sRGB dans `sorties/export/`.

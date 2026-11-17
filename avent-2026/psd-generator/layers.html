@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Rendu des calques PSD</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=Quicksand:wght@400;500;700&display=block" rel="stylesheet">
+<script src="../photoshop/config/avent2026.config.jsx"></script>
+<script src="../photoshop/lib/mdll_helpers.jsx"></script>
+</head>
+<body>
+<script>
+/*
+ * Dessine chaque calque d'un visuel sur un canvas et renvoie, pour chacun :
+ * les pixels (recadrés), et les infos vectorielles / texte pour le PSD.
+ * Appelé par generate.js via Playwright.
+ */
+const C = AVENT_CONFIG, M = MDLL;
+const FONTS = {
+  titre:        { css: "400 {s}px 'Playfair Display'", ps: () => C.polices.titre },
+  titreItalique:{ css: "italic 400 {s}px 'Playfair Display'", ps: () => C.polices.titreItalique },
+  texte:        { css: "400 {s}px 'Quicksand'", ps: () => C.polices.texte },
+  texteMedium:  { css: "500 {s}px 'Quicksand'", ps: () => C.polices.texteMedium },
+  texteGras:    { css: "700 {s}px 'Quicksand'", ps: () => C.polices.texteGras }
+};
+const hex2 = h => { const c = M.rgb(h); return { r: c[0], g: c[1], b: c[2] }; };
+
+function path2d(subpaths) {
+  const p = new Path2D();
+  subpaths.forEach(pts => {
+    p.moveTo(pts[0].a[0], pts[0].a[1]);
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      p.bezierCurveTo(a.r[0], a.r[1], b.l[0], b.l[1], b.a[0], b.a[1]);
+    }
+    p.closePath();
+  });
+  return p;
+}
+const knots = subpaths => subpaths.map(pts => ({
+  open: false, operation: "combine", fillRule: "non-zero",
+  knots: pts.map(q => ({ linked: false, points: [q.l[0], q.l[1], q.a[0], q.a[1], q.r[0], q.r[1]] }))
+}));
+
+function loadImg(src) {
+  return new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+}
+
+function grab(cv) {
+  const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  const d = ctx.getImageData(0, 0, W, H).data;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (d[(y * W + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  if (x1 < 0) return null;
+  const w = x1 - x0 + 1, h = y1 - y0 + 1, crop = ctx.getImageData(x0, y0, w, h).data;
+  let s = ""; const CH = 0x8000;
+  for (let i = 0; i < crop.length; i += CH) s += String.fromCharCode.apply(null, crop.subarray(i, i + CH));
+  return { left: x0, top: y0, width: w, height: h, b64: btoa(s) };
+}
+
+async function renderVisual(fmtKey, wk) {
+  const F = C.formats[fmtKey], S = C.semaines[wk], col = C.couleurs, T = C.textes;
+  const W = F.largeur, H = F.hauteur, cx = W / 2;
+  const comp = document.createElement("canvas"); comp.width = W; comp.height = H;
+  const cctx = comp.getContext("2d");
+  const tree = []; let group = null;
+
+  function newGroup(name) { group = { name, children: [] }; tree.push(group); }
+  function layer(name, draw, extra = {}) {
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const ctx = cv.getContext("2d");
+    if (extra.clipTo) { ctx.clip(extra.clipTo); }
+    draw(ctx);
+    const L = Object.assign({ name, opacity: extra.opacity == null ? 1 : extra.opacity }, extra.psd || {});
+    L.pixels = grab(cv);
+    group.children.push(L);
+    cctx.globalAlpha = L.opacity; cctx.drawImage(cv, 0, 0); cctx.globalAlpha = 1;
+    return L;
+  }
+  function shape(name, hex, sub, opacity) {
+    return layer(name, ctx => { ctx.fillStyle = hex; ctx.fill(path2d(sub)); },
+      { opacity, psd: { vectorFill: { type: "color", color: hex2(hex) }, vectorMask: { paths: knots(sub) } } });
+  }
+  function outline(name, hex, width, sub, opacity) {
+    return layer(name, ctx => { ctx.strokeStyle = hex; ctx.lineWidth = width; ctx.stroke(path2d(sub)); },
+      { opacity, psd: {
+        vectorFill: { type: "color", color: hex2(hex) }, vectorMask: { paths: knots(sub) },
+        vectorStroke: { strokeEnabled: true, fillEnabled: false, lineWidth: { units: "Pixels", value: width },
+          lineAlignment: "center", lineCapType: "butt", lineJoinType: "miter", opacity: 1,
+          content: { type: "color", color: hex2(hex) } } } });
+  }
+  function soft(name, hex, ecx, ecy, rx, ry, blur, opacity, extra = {}) {
+    return layer(name, ctx => {
+      ctx.filter = `blur(${blur}px)`; ctx.fillStyle = hex;
+      ctx.beginPath(); ctx.ellipse(ecx, ecy, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.filter = "none";
+    }, Object.assign({ opacity }, extra));
+  }
+  function text(name, str, x, y, role, size, hex, o = {}) {
+    const spacing = (o.tracking || 0) / 1000 * size;
+    return layer(name, ctx => {
+      ctx.font = FONTS[role].css.replace("{s}", size);
+      ctx.letterSpacing = spacing + "px";
+      ctx.textAlign = "center"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = hex;
+      ctx.fillText(str, x + spacing / 2, y);
+    }, { opacity: o.opacity, psd: { text: {
+      text: str, transform: [1, 0, 0, 1, x, y], antiAlias: "smooth",
+      style: { font: { name: FONTS[role].ps() }, fontSize: size, fillColor: hex2(hex), tracking: o.tracking || 0, autoKerning: true },
+      paragraphStyle: { justification: "center" } } } });
+  }
+
+  /* ---- 01 FOND ---- */
+  newGroup("01 · FOND");
+  layer("Fond — couleur semaine " + S.numero, ctx => { ctx.fillStyle = S.fond; ctx.fillRect(0, 0, W, H); },
+    { psd: { vectorFill: { type: "color", color: hex2(S.fond) } } });
+  const hl = F.halo;
+  soft("Halo lumineux", S.fondClair, hl.cx, hl.cy, hl.rx, hl.ry, 140, Math.min(100, hl.opacite * 2) / 100);
+
+  /* ---- 02 DÉCOR ---- */
+  newGroup("02 · DÉCOR (neige, étincelles, cadre)");
+  shape("Neige", col.creme, AVENT_flocons(F).map(f => M.pathCircle(f[0], f[1], f[2])), 0.55);
+  const stars = F.etincelles.map(e => M.pathStar4(e[0], e[1], e[2]));
+  layer("Étincelles — lueur", ctx => {
+    ctx.filter = "blur(6px)"; ctx.fillStyle = col.orClair;
+    ctx.fill(path2d(F.etincelles.map(e => M.pathStar4(e[0], e[1], e[2] * 1.6)))); ctx.filter = "none";
+  }, { opacity: 0.35 });
+  shape("Étincelles dorées", col.orClair, stars);
+  const m = F.cadre.marge;
+  outline("Cadre doré", col.or, F.cadre.epaisseur, [M.pathRoundRect(m, m, W - 2 * m, H - 2 * m, F.cadre.rayon)], 0.75);
+
+  /* ---- 03 PORTE ---- */
+  newGroup("03 · PORTE DU CALENDRIER");
+  const A = F.arche, archSub = [M.pathArch(A.x, A.y, A.l, A.h)];
+  shape("Arche — fond", S.fondClair, archSub);
+  const lueur = soft("Arche — lueur intérieure (écrêtée)", col.creme, A.x + A.l / 2, A.y + A.h * 0.45, A.l * 0.55, A.h * 0.4, 90, 0.22, { clipTo: path2d(archSub) });
+  lueur.clipping = true;
+  outline("Arche — contour doré", col.or, A.epaisseur, archSub);
+  outline("Arche — filet intérieur", col.or, 1, [M.pathArch(A.x + 14, A.y + 14, A.l - 28, A.h - 28)], 0.5);
+
+  /* ---- 04 PRODUIT ---- */
+  newGroup("04 · PRODUIT");
+  const O = F.ombreProduit, dy = S.produitDecalageY || 0;
+  soft("Ombre portée produit", col.ombre, O.cx, O.cy + dy, O.rx, O.ry, 18, O.opacite / 100);
+  const img = await loadImg("../photoshop/assets/produits/" + S.image);
+  const P = F.produit;
+  layer("PRODUIT — à remplacer par le packshot HD", ctx => {
+    if (!img) return;
+    const k = Math.min(P.lMax / img.width, P.hMax / img.height) * S.produitEchelle;
+    const w = img.width * k, h = img.height * k;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, P.cx - w / 2, P.cy - h / 2 + dy, w, h);
+  });
+
+  /* ---- 05 DATE ---- */
+  newGroup("05 · PASTILLE DATE");
+  const B = F.pastille, bx = A.x + A.l / 2;
+  shape("Pastille — découpe", S.fond, [M.pathCircle(bx, B.cy, B.r + 8)]);
+  shape("Pastille — or", col.or, [M.pathCircle(bx, B.cy, B.r)]);
+  outline("Pastille — anneau", S.fond, 1, [M.pathCircle(bx, B.cy, B.r - 6)], 0.45);
+  const yJ = B.cy + B.tailleJour * 0.22;
+  text("Date — jour", S.jour, bx, yJ, "texteGras", B.tailleJour, S.fond, { tracking: 20 });
+  text("Date — mois", S.mois, bx, yJ + B.tailleMois * 1.5, "texteGras", B.tailleMois, S.fond, { tracking: 200 });
+
+  /* ---- 06 TEXTES ---- */
+  newGroup("06 · TEXTES");
+  const L = F.logo;
+  text("Logo (texte provisoire)", T.logo, cx, L.y, "texteGras", L.taille, col.creme, { tracking: L.approche });
+  text("Surtitre", S.surtitre || T.surtitre, cx, F.surtitre.y, "texteMedium", F.surtitre.taille, col.or, { tracking: F.surtitre.approche });
+  text("Titre ligne 1", T.titre1, cx, F.titre1.y, "titre", F.titre1.taille, col.creme);
+  text("Titre ligne 2", T.titre2, cx, F.titre2.y, "titreItalique", F.titre2.taille, col.creme);
+  text("Accroche", T.accroche, cx, F.accroche.y, "texte", F.accroche.taille, col.creme, { tracking: F.accroche.approche });
+  text("Cadeau", S.cadeau, cx, F.cadeau.y, "titreItalique", F.cadeau.taille, col.creme);
+  text("Détails produit", S.details, cx, F.details.y, "texteMedium", F.details.taille, col.creme, { tracking: F.details.approche, opacity: 0.8 });
+  const V = F.valeur, vtxt = S.valeur.toUpperCase();
+  const mctx = document.createElement("canvas").getContext("2d");
+  mctx.font = FONTS.texteGras.css.replace("{s}", V.taille); mctx.letterSpacing = (V.approche / 1000 * V.taille) + "px";
+  const vw = mctx.measureText(vtxt).width + 2 * V.padding, vcy = V.y - V.taille * 0.36;
+  shape("Valeur — fond", col.or, [M.pathRoundRect(cx - vw / 2, vcy - V.hauteur / 2, vw, V.hauteur, V.hauteur / 2)]);
+  text("Valeur — texte", vtxt, cx, V.y, "texteGras", V.taille, S.fond, { tracking: V.approche });
+  if (F.cta) text("Story — date du tirage", S.tirage, cx, F.cta.y, "texteMedium", F.cta.taille, col.creme, { tracking: F.cta.approche, opacity: 0.85 });
+
+  const composite = grab(comp);
+  return { name: S.fichier + "_" + F.nom, width: W, height: H, tree, composite };
+}
+
+window.renderVisual = renderVisual;
+(async () => {
+  await document.fonts.ready;
+  for (const k in FONTS) await document.fonts.load(FONTS[k].css.replace("{s}", 40));
+  document.body.dataset.ready = 1;
+})();
+</script>
+</body>
+</html>
