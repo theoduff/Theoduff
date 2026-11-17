@@ -31,8 +31,18 @@
         dest.write(relay); dest.close();
         alert("Installé !\nRedémarrez Photoshop : le lanceur apparaîtra dans\nFichier > Scripts > MDLL Lanceur.\n\nAstuce : Édition > Raccourcis clavier pour lui attribuer un raccourci.");
     } else {
-        alert("Photoshop n'a pas les droits d'écriture dans :\n" + destDir.fsName +
-              "\n\nSolution : copiez à la main le fichier « Lanceur_Scripts.jsx » dans ce dossier\n" +
-              "(ou lancez-le via Fichier > Scripts > Parcourir…).");
+        // Pas de droits (cas normal sur Mac) : on prépare le fichier relais à côté
+        // et on ouvre les deux dossiers pour un simple glisser-déposer.
+        var local = new File(here.fsName + "/MDLL Lanceur.jsx");
+        local.encoding = "UTF-8";
+        if (local.open("w")) { local.write(relay); local.close(); }
+        alert("Photoshop n'a pas le droit d'écrire dans le dossier des scripts\n(c'est normal sur Mac).\n\n" +
+              "Deux fenêtres du Finder vont s'ouvrir :\n" +
+              "1. Glissez « MDLL Lanceur.jsx » dans le dossier « Scripts »\n" +
+              "   (le Mac demandera votre mot de passe : cliquez sur Authentifier).\n" +
+              "2. Redémarrez Photoshop : Fichier > Scripts > MDLL Lanceur.\n\n" +
+              "En attendant, vous pouvez lancer « Lanceur_Scripts.jsx »\nvia Fichier > Scripts > Parcourir…");
+        try { destDir.execute(); } catch (e1) {}
+        try { here.execute(); } catch (e2) {}
     }
 })();
