@@ -1,8 +1,8 @@
 # Prémontage reel « Champagne blanc de noirs × fromages »
 
-9:16, 1080×1920, 30 i/s, **44,9 s**, son mixé à −14 LUFS. Uniquement des coupes franches et des zooms, sans effets ni sous-titres.
+9:16, 1080×1920, 30 i/s, **46,8 s**, son mixé à −14 LUFS. Uniquement des coupes franches et des zooms, sans effets ni sous-titres.
 
-Sortie : contrechamp sur la fromagère qui écoute, avec un dézoom lent ; la voix de la sommelière continue en fondu jusqu'au silence (1 s).
+Sortie : contrechamp sur la fromagère qui écoute, avec un dézoom lent ; la voix de la sommelière continue en fondu jusqu'au silence, puis fondu au noir sur 0,6 s (sortie de 2,8 s).
 
 | # | Reel | Rush source | IN → OUT source (image) | Cadrage / zoom | Texte |
 |---|---|---|---|---|---|
@@ -22,4 +22,4 @@ Sortie : contrechamp sur la fromagère qui écoute, avec un dézoom lent ; la vo
 | 14 | 00:34.83 → 00:36.27 | Champagne blanc de noirs.mov | 00:32.70 → 00:34.13 | large | D'ailleurs, on se trompe tout le temps. |
 | 15 | 00:36.27 → 00:39.43 | Champagne blanc de noirs.mov | 00:34.50 → 00:37.67 | fixe 12% | Parfois on choisit un champagne comme ça, un peu au pif. |
 | 16 | 00:39.43 → 00:43.93 | Champagne blanc de noirs.mov | 00:39.50 → 00:44.00 | punch-in +19% à 2.9s | Et en vérité, c'est des cuvées qui ont une certaine consistance, une certaine importance. |
-| 17 | 00:43.93 → 00:44.97 | Champagne blanc de noirs.mov | 00:45.40 → 00:46.43 | dézoom 12→0% | (sortie : contrechamp écoute, voix en fondu) |
+| 17 | 00:43.93 → 00:46.77 | Champagne blanc de noirs.mov | 00:45.40 → 00:48.23 | dézoom lent adouci 16→0% + fondu noir 0,6 s | (sortie : contrechamp écoute, voix en fondu) |
