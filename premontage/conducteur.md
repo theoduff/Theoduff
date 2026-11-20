@@ -1,8 +1,8 @@
 # Prémontage reel « Champagne blanc de noirs × fromages »
 
-9:16, 1080×1920, 30 i/s, **46,8 s**, son mixé à −14 LUFS. Uniquement des coupes franches et des zooms, sans effets ni sous-titres.
+9:16, 1080×1920, 30 i/s, **54,0 s**, son mixé à −14 LUFS. Uniquement des coupes franches et des zooms, sans effets ni sous-titres.
 
-Sortie : contrechamp sur la fromagère qui écoute, avec un dézoom lent ; la voix de la sommelière continue en fondu jusqu'au silence, puis fondu au noir sur 0,6 s (sortie de 2,8 s).
+Fin : la phrase va jusqu'au bout (« …ça ressemble à rien. »), puis 1,5 s de réaction muette de la fromagère, avec un dézoom et un fondu au noir.
 
 | # | Reel | Rush source | IN → OUT source (image) | Cadrage / zoom | Texte |
 |---|---|---|---|---|---|
@@ -22,4 +22,7 @@ Sortie : contrechamp sur la fromagère qui écoute, avec un dézoom lent ; la vo
 | 14 | 00:34.83 → 00:36.27 | Champagne blanc de noirs.mov | 00:32.70 → 00:34.13 | large | D'ailleurs, on se trompe tout le temps. |
 | 15 | 00:36.27 → 00:39.43 | Champagne blanc de noirs.mov | 00:34.50 → 00:37.67 | fixe 12% | Parfois on choisit un champagne comme ça, un peu au pif. |
 | 16 | 00:39.43 → 00:43.93 | Champagne blanc de noirs.mov | 00:39.50 → 00:44.00 | punch-in +19% à 2.9s | Et en vérité, c'est des cuvées qui ont une certaine consistance, une certaine importance. |
-| 17 | 00:43.93 → 00:46.77 | Champagne blanc de noirs.mov | 00:45.40 → 00:48.23 | dézoom lent adouci 16→0% + fondu noir 0,6 s | (sortie : contrechamp écoute, voix en fondu) |
+| 17 | 00:43.93 → 00:47.80 | Champagne blanc de noirs.mov | 00:44.10 → 00:47.97 | push-in lent 0→4% | Et puis on régresse terriblement sur des vins un peu banals, |
+| 18 | 00:47.80 → 00:49.13 | Champagne blanc de noirs.mov | 00:48.00 → 00:49.33 | fixe 12% | sur des choses plus simples. |
+| 19 | 00:49.13 → 00:52.43 | Champagne blanc de noirs.mov | 00:50.33 → 00:53.63 | push-in lent 0→8% | Et on se dit, oh mais souvent, ça ressemble à rien. |
+| 20 | 00:52.43 → 00:53.93 | Champagne blanc de noirs.mov | 00:48.95 → 00:50.45 | dézoom lent adouci 16→0% + fondu noir | (sortie : réaction de la fromagère, sans son, fondu au noir) |
