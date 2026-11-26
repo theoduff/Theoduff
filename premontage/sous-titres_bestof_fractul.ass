@@ -1,0 +1,37 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Fractul Variable Light,60,&H00FFFFFF,&H00FFFFFF,&HA0000000,&HA0000000,0,0,0,0,100,100,0,0,1,2.2,1.5,2,70,70,585,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:02.77,Default,,0,0,0,,{\blur4}Moi je dirais que c'est un peu\Nun accord ennemi,
+Dialogue: 0,0:00:02.80,0:00:04.27,Default,,0,0,0,,{\blur4}mais c'est pas méchant\Nquand je dis ennemi.
+Dialogue: 0,0:00:04.30,0:00:05.29,Default,,0,0,0,,{\blur4}Une mêlée de rugby, tu vois.
+Dialogue: 0,0:00:05.32,0:00:07.22,Default,,0,0,0,,{\blur4}T'as une bataille comme ça,\Net à la fin ils deviennent amis.
+Dialogue: 0,0:00:07.25,0:00:09.16,Default,,0,0,0,,{\blur4}En France, est-ce que vous savez\Ncombien il y en a ?
+Dialogue: 0,0:00:09.19,0:00:11.36,Default,,0,0,0,,{\blur4}Plus que des jours de l'année,\Ndisait de Gaulle.
+Dialogue: 0,0:00:11.39,0:00:13.06,Default,,0,0,0,,{\blur4}Mais en fait, on dit\Nqu'on en a plus de 3 500.
+Dialogue: 0,0:00:13.09,0:00:15.27,Default,,0,0,0,,{\blur4}Celui-là, c'est normal\Nqu'on le connaisse pas,
+Dialogue: 0,0:00:15.30,0:00:17.46,Default,,0,0,0,,{\blur4}parce qu'il est fabriqué\Nau Musée vivant du fromage.
+Dialogue: 0,0:00:17.49,0:00:18.42,Default,,0,0,0,,{\blur4}C'est une petite star, en fait.
+Dialogue: 0,0:00:18.45,0:00:21.47,Default,,0,0,0,,{\blur4}En fait, vous avez compris, c'est qu'on\Njoue beaucoup avec le nez et la bouche,
+Dialogue: 0,0:00:21.50,0:00:22.46,Default,,0,0,0,,{\blur4}c'est ça qui est intéressant.
+Dialogue: 0,0:00:22.49,0:00:24.56,Default,,0,0,0,,{\blur4}Celui-là, qui est orange,\Nil s'appelle le Langres.
+Dialogue: 0,0:00:24.59,0:00:26.19,Default,,0,0,0,,{\blur4}C'est un fromage\Nqui vient de Champagne.
+Dialogue: 0,0:00:26.22,0:00:30.72,Default,,0,0,0,,{\blur4}C'est vrai que ça ressemble pas\Nau champagne dont t'as l'habitude.
+Dialogue: 0,0:00:30.75,0:00:31.96,Default,,0,0,0,,{\blur4}C'est un champagne blanc de noirs.
+Dialogue: 0,0:00:31.99,0:00:35.92,Default,,0,0,0,,{\blur4}C'est un vin blanc\Nissu de raisin noir.
+Dialogue: 0,0:00:35.95,0:00:38.09,Default,,0,0,0,,{\blur4}Je trouve qu'il est beaucoup\Nplus gastronomique.
+Dialogue: 0,0:00:38.12,0:00:39.87,Default,,0,0,0,,{\blur4}C'est limite un accord\Nde transformation,
+Dialogue: 0,0:00:39.90,0:00:42.66,Default,,0,0,0,,{\blur4}parce qu'on a l'impression d'avoir\Nquelque chose de nouveau dans la bouche.
+Dialogue: 0,0:00:42.69,0:00:44.27,Default,,0,0,0,,{\blur4}Tu reconnais un peu le vin,\Ntu reconnais un peu le fromage,
+Dialogue: 0,0:00:44.30,0:00:46.32,Default,,0,0,0,,{\blur4}mais t'as quand même l'impression\Nd'avoir un nouveau goût.
+Dialogue: 0,0:00:46.35,0:00:47.47,Default,,0,0,0,,{\blur4}C'est un boum, boum !
+Dialogue: 0,0:00:47.50,0:00:49.10,Default,,0,0,0,,{\blur4}Moi je trouve que ça matche,\Nla Marotte !
