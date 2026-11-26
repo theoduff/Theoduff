@@ -1,0 +1,33 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Figtree Light,60,&H00FFFFFF,&H00FFFFFF,&HA0000000,&HA0000000,0,0,0,0,100,100,0,0,1,2.2,1.5,2,70,70,585,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:04.59,Default,,0,0,0,,{\blur4}C'est vrai que ça ne ressemble pas\Naux champagnes dont t'as l'habitude.
+Dialogue: 0,0:00:04.62,0:00:05.95,Default,,0,0,0,,{\blur4}C'est un champagne blanc de noirs.
+Dialogue: 0,0:00:05.98,0:00:10.02,Default,,0,0,0,,{\blur4}C'est un vin blanc\Nissu de raisins noirs.
+Dialogue: 0,0:00:10.05,0:00:11.09,Default,,0,0,0,,{\blur4}Regarde la couleur.
+Dialogue: 0,0:00:11.12,0:00:13.55,Default,,0,0,0,,{\blur4}Mais d'habitude, c'est beaucoup\Nplus pâle en champagne.
+Dialogue: 0,0:00:13.58,0:00:16.12,Default,,0,0,0,,{\blur4}Là, il a un petit caractère,\Nbeaucoup plus doré.
+Dialogue: 0,0:00:16.15,0:00:19.57,Default,,0,0,0,,{\blur4}Un peu abricot, un peu mirabelle,\Nun peu prune…
+Dialogue: 0,0:00:19.60,0:00:21.85,Default,,0,0,0,,{\blur4}…sur des fruits confits,\Nun peu miellés.
+Dialogue: 0,0:00:21.88,0:00:24.07,Default,,0,0,0,,{\blur4}Je trouve qu'il est beaucoup\Nplus gastronomique.
+Dialogue: 0,0:00:24.10,0:00:26.33,Default,,0,0,0,,{\blur4}On a renversé\Nla théorie classique,
+Dialogue: 0,0:00:26.36,0:00:29.57,Default,,0,0,0,,{\blur4}où les champagnes\Npassent tous en premier.
+Dialogue: 0,0:00:29.60,0:00:33.35,Default,,0,0,0,,{\blur4}Une coupe de ça à l'apéritif,\Net par la suite…
+Dialogue: 0,0:00:33.38,0:00:35.07,Default,,0,0,0,,{\blur4}on a du mal à suivre.
+Dialogue: 0,0:00:35.10,0:00:36.35,Default,,0,0,0,,{\blur4}D'ailleurs, on se trompe\Ntout le temps.
+Dialogue: 0,0:00:36.38,0:00:39.47,Default,,0,0,0,,{\blur4}Parfois, on choisit un champagne\Ncomme ça, un peu au pif.
+Dialogue: 0,0:00:39.50,0:00:43.15,Default,,0,0,0,,{\blur4}Et en vérité, c'est des cuvées\Nqui ont une certaine consistance,
+Dialogue: 0,0:00:43.18,0:00:43.95,Default,,0,0,0,,{\blur4}une certaine importance.
+Dialogue: 0,0:00:43.98,0:00:47.91,Default,,0,0,0,,{\blur4}Et puis on régresse terriblement\Nsur des vins un peu banals,
+Dialogue: 0,0:00:47.94,0:00:49.21,Default,,0,0,0,,{\blur4}sur des choses plus simples.
+Dialogue: 0,0:00:49.24,0:00:52.75,Default,,0,0,0,,{\blur4}Et on se dit : « Oh, mais ce vin\Nne ressemble à rien. »
